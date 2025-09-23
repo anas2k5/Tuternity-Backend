@@ -25,9 +25,17 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // login, register open
-                        .requestMatchers("/test-email").permitAll() // ✅ allow test email
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN") // protect admin endpoints
+                        // Public endpoints
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/test-email").permitAll()
+
+                        // Admin-only endpoints
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // ✅ Allow STUDENT, TEACHER, ADMIN to leave & view reviews
+                        .requestMatchers("/api/reviews/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN")
+
+                        // Any other endpoint must be authenticated
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
