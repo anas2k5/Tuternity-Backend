@@ -26,6 +26,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll() // login, register open
+                        .requestMatchers("/test-email").permitAll() // ✅ allow test email
                         .requestMatchers("/api/admin/**").hasRole("ADMIN") // protect admin endpoints
                         .anyRequest().authenticated()
                 )
@@ -34,13 +35,11 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // BCrypt for password hashing
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // Provide AuthenticationManager bean for login service
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
