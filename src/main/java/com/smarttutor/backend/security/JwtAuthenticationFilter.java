@@ -37,19 +37,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
-        String username = jwtUtil.extractUsername(token);
-        String role = jwtUtil.extractRole(token);
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(
-                            username,
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                    );
+        try {
+            String username = jwtUtil.extractUsername(token);
+            String role = jwtUtil.extractRole(token);
 
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+            System.out.println("👉 Extracted username: " + username);
+            System.out.println("👉 Extracted role: " + role);
+
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                System.out.println("👉 Authorities being set: " + authorities);
+
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(username, null, authorities);
+
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Invalid or malformed JWT: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);

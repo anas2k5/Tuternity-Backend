@@ -5,9 +5,12 @@ import com.smarttutor.backend.model.TeacherProfile;
 import com.smarttutor.backend.service.TeacherService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/teacher")
 public class TeacherController {
+
     private final TeacherService teacherService;
 
     public TeacherController(TeacherService teacherService) {
@@ -22,5 +25,11 @@ public class TeacherController {
     @GetMapping("/{teacherId}")
     public TeacherProfile getProfile(@PathVariable Long teacherId) {
         return teacherService.getProfile(teacherId);
+    }
+
+    // ✅ New endpoint to get all teachers
+    @GetMapping
+    public List<TeacherProfile> getAllTeachers() {
+        return teacherService.getAllTeachers();
     }
 }

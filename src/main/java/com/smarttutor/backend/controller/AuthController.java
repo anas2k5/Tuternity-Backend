@@ -37,11 +37,15 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
         try {
             String token = authService.login(req.getEmail(), req.getPassword());
-            return ResponseEntity.ok(token); // 200 OK + JWT token
-        } catch (UsernameNotFoundException | BadCredentialsException ex) {
-            return ResponseEntity.status(401).body("{\"error\": \"" + ex.getMessage() + "\"}");
+            return ResponseEntity.ok(token);
+        } catch (UsernameNotFoundException ex) {
+            return ResponseEntity.status(404).body("{\"error\": \"" + ex.getMessage() + "\"}");
+        } catch (BadCredentialsException ex) {
+            return ResponseEntity.status(401).body("{\"error\": \"Invalid credentials\"}");
         } catch (Exception ex) {
+            ex.printStackTrace();  // ✅ Now you’ll see the actual error in console
             return ResponseEntity.status(500).body("{\"error\": \"Internal server error\"}");
         }
     }
+
 }
