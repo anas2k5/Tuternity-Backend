@@ -5,6 +5,7 @@ import com.smarttutor.backend.model.User;
 import com.smarttutor.backend.repository.UserRepository;
 import com.smarttutor.backend.security.JwtUtil;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -36,14 +37,12 @@ public class AuthService {
     // Login & generate JWT
     public String login(String email, String password) {
         User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
         if (!encoder.matches(password, user.getPassword())) {
             throw new BadCredentialsException("Invalid credentials");
         }
 
-        // ✅ Pass role name, not Role object
         return jwtUtil.generateToken(user.getEmail(), user.getRole().name());
-
     }
 }
