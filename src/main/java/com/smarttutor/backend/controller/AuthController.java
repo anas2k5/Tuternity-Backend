@@ -10,6 +10,8 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -21,7 +23,7 @@ public class AuthController {
         this.authService = authService;
     }
 
-    // Register API
+    // ✅ Register API
     @PostMapping("/register")
     public User register(@RequestBody RegisterRequest req) {
         System.out.println(">>> register endpoint hit, email: " + req.getEmail());
@@ -29,24 +31,35 @@ public class AuthController {
                 req.getName(),
                 req.getEmail(),
                 req.getPassword(),
-                Role.valueOf(req.getRole().toUpperCase()) // Convert String to Role enum
+                Role.valueOf(req.getRole().toUpperCase())
         );
     }
 
-    // Login API
+    // ✅ Login API (fixed)
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
         try {
+            // Get token
             String token = authService.login(req.getEmail(), req.getPassword());
-            return ResponseEntity.ok(token);
+
+            // Get user from service or repo
+            User user = authService.findUserByEmail(req.getEmail());
+
+            // Return token + user info as JSON
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "role", user.getRole().name(),
+                    "name", user.getName(),
+                    "email", user.getEmail()
+            ));
+
         } catch (UsernameNotFoundException ex) {
-            return ResponseEntity.status(404).body("{\"error\": \"" + ex.getMessage() + "\"}");
+            return ResponseEntity.status(404).body(Map.of("error", ex.getMessage()));
         } catch (BadCredentialsException ex) {
-            return ResponseEntity.status(401).body("{\"error\": \"Invalid credentials\"}");
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         } catch (Exception ex) {
-            ex.printStackTrace();  // ✅ Now you’ll see the actual error in console
-            return ResponseEntity.status(500).body("{\"error\": \"Internal server error\"}");
+            ex.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
-
 }

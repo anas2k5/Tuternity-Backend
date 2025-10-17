@@ -19,7 +19,11 @@ public class TeacherProfile {
     private String subject;
     private Double hourlyRate;
 
+    @Column(nullable = true)
+    private String skills; // ✅ added skills
+
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 }
+

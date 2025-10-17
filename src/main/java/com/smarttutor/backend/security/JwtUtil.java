@@ -24,35 +24,40 @@ public class JwtUtil {
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration}") long expirationTime
     ) {
-        // Ensure key is strong enough (convert string to Key)
         this.SECRET_KEY = Keys.hmacShaKeyFor(secret.getBytes());
         this.EXPIRATION_TIME = expirationTime;
     }
 
-    // Extract username (subject)
+    // ✅ Extract username (subject)
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    // Extract role from custom claim "role"
+    // ✅ Extract role from token
     public String extractRole(String token) {
         return extractAllClaims(token).get("role", String.class);
     }
 
-    // Generic claim extractor
+    // ✅ Generic claim extractor
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
-    // Generate token
+    // ✅ Generate JWT Token with ROLE_ prefix
     public String generateToken(String username, String role) {
         Map<String, Object> claims = new HashMap<>();
+
+        // Ensure Spring Security recognizes the role
+        if (!role.startsWith("ROLE_")) {
+            role = "ROLE_" + role;
+        }
+
         claims.put("role", role);
         return createToken(claims, username);
     }
 
-    // Create token with claims
+    // ✅ Create token with claims and expiration
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .setClaims(claims)
@@ -63,7 +68,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    // Validate token
+    // ✅ Validate token with username check
     public boolean validateToken(String token, String username) {
         final String extractedUsername = extractUsername(token);
         return (extractedUsername.equals(username) && !isTokenExpired(token));

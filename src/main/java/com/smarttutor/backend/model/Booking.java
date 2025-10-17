@@ -2,32 +2,31 @@ package com.smarttutor.backend.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
+
+import java.time.LocalDate;
 
 @Entity
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "bookings")
 public class Booking {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // User who booked
     @ManyToOne
-    @JoinColumn(name = "student_id", nullable = false)
-    private User student;
+    @JoinColumn(name = "user_id")
+    private User user;
 
+    // Teacher being booked
     @ManyToOne
-    @JoinColumn(name = "teacher_id", nullable = false)
+    @JoinColumn(name = "teacher_id")
     private TeacherProfile teacher;
 
-    @OneToOne
-    @JoinColumn(name = "availability_id", nullable = false)
-    private Availability availability;
-
-    private LocalDateTime bookingTime;
-    private String status; // PENDING, CONFIRMED, PAID, CANCELLED
+    private String status; // e.g., "CONFIRMED", "CANCELLED"
+    private LocalDate date;
+    private String timeSlot; // e.g., "10:00 AM - 11:00 AM"
 }

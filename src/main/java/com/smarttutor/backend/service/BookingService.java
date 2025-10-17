@@ -1,87 +1,43 @@
 package com.smarttutor.backend.service;
 
 import com.smarttutor.backend.dto.BookingRequest;
-import com.smarttutor.backend.model.*;
-import com.smarttutor.backend.repository.*;
+import com.smarttutor.backend.model.Booking;
+import com.smarttutor.backend.model.TeacherProfile;
+import com.smarttutor.backend.model.User;
+import com.smarttutor.backend.repository.BookingRepository;
+import com.smarttutor.backend.repository.TeacherProfileRepository;
+import com.smarttutor.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 public class BookingService {
 
-    private final BookingRepository bookingRepo;
-    private final UserRepository userRepo;
-    private final TeacherProfileRepository teacherRepo;
-    private final AvailabilityRepository availabilityRepo;
-    private final NotificationService notificationService; // ✅ Added NotificationService
+    private final BookingRepository bookingRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
+    private final UserRepository userRepository;
 
-    public BookingService(BookingRepository bookingRepo,
-                          UserRepository userRepo,
-                          TeacherProfileRepository teacherRepo,
-                          AvailabilityRepository availabilityRepo,
-                          NotificationService notificationService) { // ✅ Added to constructor
-        this.bookingRepo = bookingRepo;
-        this.userRepo = userRepo;
-        this.teacherRepo = teacherRepo;
-        this.availabilityRepo = availabilityRepo;
-        this.notificationService = notificationService;
+    public BookingService(BookingRepository bookingRepository,
+                          TeacherProfileRepository teacherProfileRepository,
+                          UserRepository userRepository) {
+        this.bookingRepository = bookingRepository;
+        this.teacherProfileRepository = teacherProfileRepository;
+        this.userRepository = userRepository;
     }
 
-    public Booking createBooking(BookingRequest request) {
-        User student = userRepo.findById(request.getStudentId()).orElseThrow();
-        TeacherProfile teacher = teacherRepo.findById(request.getTeacherId()).orElseThrow();
-        Availability availability = availabilityRepo.findById(request.getAvailabilityId()).orElseThrow();
+    public Booking createBooking(String userEmail, BookingRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found: " + userEmail));
 
-        if (availability.isBooked()) {
-            throw new RuntimeException("Slot already booked!");
-        }
+        TeacherProfile teacher = teacherProfileRepository.findById(request.getTeacherId())
+                .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + request.getTeacherId()));
 
-        // Mark the slot as booked
-        availability.setBooked(true);
-        availabilityRepo.save(availability);
+        Booking booking = new Booking();
+        booking.setUser(user);
+        booking.setTeacher(teacher);
+        booking.setStatus("CONFIRMED");
+        booking.setDate(request.getDate());
+        booking.setTimeSlot(request.getTimeSlot());
 
-        // Create the booking
-        Booking booking = Booking.builder()
-                .student(student)
-                .teacher(teacher)
-                .availability(availability)
-                .bookingTime(LocalDateTime.now())
-                .status("CONFIRMED")
-                .build();
-
-        Booking savedBooking = bookingRepo.save(booking);
-
-        // ✅ Send confirmation email to student
-        notificationService.sendEmail(
-                student.getEmail(),
-                "Booking Confirmed",
-                "Hello " + student.getName() + ",\n\nYour session with " +
-                        teacher.getUser().getName() + " is confirmed for " +
-                        availability.getStartTime().toLocalDate() + " at " + availability.getStartTime().toLocalTime() +
-                        ".\n\nThank you for booking with us!"
-        );
-
-        // ✅ Optional: Send notification email to teacher
-        notificationService.sendEmail(
-                teacher.getUser().getEmail(),
-                "New Booking Received",
-                "Hello " + teacher.getUser().getName() + ",\n\nYou have a new booking from " +
-                        student.getName() + " scheduled for " +
-                        availability.getStartTime().toLocalDate() + " at " + availability.getStartTime().toLocalTime() + "."
-        );
-
-        return savedBooking;
-    }
-
-    public List<Booking> getStudentBookings(Long studentId) {
-        User student = userRepo.findById(studentId).orElseThrow();
-        return bookingRepo.findByStudent(student);
-    }
-
-    public List<Booking> getTeacherBookings(Long teacherId) {
-        TeacherProfile teacher = teacherRepo.findById(teacherId).orElseThrow();
-        return bookingRepo.findByTeacher(teacher);
+        return bookingRepository.save(booking);
     }
 }

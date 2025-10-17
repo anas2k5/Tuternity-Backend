@@ -20,7 +20,8 @@ public class AvailabilityController {
         return availabilityService.addAvailability(teacherId, request);
     }
 
-    @GetMapping("/{teacherId}")
+    // FIXED endpoint
+    @GetMapping("/teacher/{teacherId}")
     public List<Availability> getAvailability(@PathVariable Long teacherId) {
         return availabilityService.getTeacherAvailability(teacherId);
     }

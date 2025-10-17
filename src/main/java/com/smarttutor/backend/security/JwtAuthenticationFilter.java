@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -18,9 +20,11 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final UserDetailsService userDetailsService;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
+        this.userDetailsService = userDetailsService;
     }
 
     @Override
@@ -30,33 +34,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
+        final String jwt;
+        final String username;
 
+        // ✅ Skip if no Authorization header or not a Bearer token
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
+        jwt = authHeader.substring(7); // remove "Bearer "
+        username = jwtUtil.extractUsername(jwt);
 
-        try {
-            String username = jwtUtil.extractUsername(token);
-            String role = jwtUtil.extractRole(token);
+        // ✅ If user not yet authenticated, validate the token
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-            System.out.println("👉 Extracted username: " + username);
-            System.out.println("👉 Extracted role: " + role);
+            if (jwtUtil.validateToken(jwt, userDetails.getUsername())) {
+                String role = jwtUtil.extractRole(jwt);
 
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
-                System.out.println("👉 Authorities being set: " + authorities);
+                // ✅ Use the role exactly as stored in the token (e.g. ROLE_STUDENT)
+                SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role);
 
                 UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(username, null, authorities);
+                        new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                List.of(authority)
+                        );
 
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                // ✅ Optional: debug log (can remove later)
+                System.out.println("? Extracted username: " + username);
+                System.out.println("? Extracted role: " + role);
+                System.out.println("? Authorities being set: " + List.of(authority));
             }
-        } catch (Exception e) {
-            System.out.println("❌ Invalid or malformed JWT: " + e.getMessage());
         }
 
         filterChain.doFilter(request, response);

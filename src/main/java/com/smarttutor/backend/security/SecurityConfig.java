@@ -12,6 +12,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
@@ -27,44 +32,53 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> {})  // enable CORS via WebConfig
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ✅ Allow React frontend
 
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public endpoints
+                        // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/teacher/**").permitAll()
 
-                        // ✅ Student endpoints
-                        .requestMatchers("/api/student/**").hasRole("STUDENT")
+                        // Booking: Students only
+                        .requestMatchers(HttpMethod.POST, "/api/bookings/**").hasAuthority("ROLE_STUDENT")
 
-                        // ✅ Teacher endpoints (students can VIEW teachers, teachers can EDIT themselves)
-                        .requestMatchers(HttpMethod.GET, "/api/teacher/**")
-                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/teacher/**")
-                        .hasRole("TEACHER")
+                        // View bookings (for testing)
+                        .requestMatchers(HttpMethod.GET, "/api/bookings/**").permitAll()
 
-                        // ✅ Admin endpoints
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Teachers can manage their profiles
+                        .requestMatchers(HttpMethod.POST, "/api/teacher/**").hasAuthority("ROLE_TEACHER")
 
-                        // ✅ Any other request requires authentication
+                        // Admin-only routes
+                        .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+
+                        // All others must be authenticated
                         .anyRequest().authenticated()
                 )
 
-                // ✅ Stateless sessions (JWT only)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                // ✅ Add JWT filter before username-password filter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // ✅ Authentication Manager Bean
+    // ✅ Allow frontend (React) CORS configuration
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    // ✅ Password Encoder Bean
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
