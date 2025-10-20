@@ -22,7 +22,7 @@ public class BookingController {
         this.jwtUtil = jwtUtil;
     }
 
-    // Endpoint to CREATE a new booking (Your existing POST method)
+    // Endpoint to CREATE a new booking (POST)
     @PostMapping
     public Booking createBooking(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
                                  @RequestBody BookingRequest request) {
@@ -37,12 +37,27 @@ public class BookingController {
         return bookingService.createBooking(email, request);
     }
 
-    // ✅ NEW: Endpoint to RETRIEVE a student's bookings
+    // Endpoint to RETRIEVE a student's bookings (GET)
     @GetMapping("/student/{studentId}")
     public ResponseEntity<List<Booking>> getStudentBookings(@PathVariable Long studentId) {
         List<Booking> bookings = bookingService.getStudentBookings(studentId);
-
-        // Returns the list of bookings (or an empty list if none are found)
         return ResponseEntity.ok(bookings);
+    }
+
+    // ✅ NEW: Endpoint to CANCEL a booking (DELETE)
+    @DeleteMapping("/{bookingId}")
+    public ResponseEntity<Void> cancelBooking(@PathVariable Long bookingId,
+                                              @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).build();
+        }
+
+        String token = authorizationHeader.substring(7);
+        String studentEmail = jwtUtil.extractUsername(token);
+
+        bookingService.cancelBooking(bookingId, studentEmail);
+
+        return ResponseEntity.noContent().build();
     }
 }

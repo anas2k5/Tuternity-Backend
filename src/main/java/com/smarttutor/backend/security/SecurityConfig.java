@@ -39,11 +39,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/teacher/**").permitAll()
 
-                        // CRITICAL FIX: Allow students to RETRIEVE their own bookings (GET /api/bookings/student/{id})
+                        // CRITICAL: Allow students to RETRIEVE their own bookings (GET /api/bookings/student/{id})
                         .requestMatchers(HttpMethod.GET, "/api/bookings/student/**").hasAuthority("ROLE_STUDENT")
 
                         // Allow POST for booking creation
                         .requestMatchers(HttpMethod.POST, "/api/bookings/**").hasAuthority("ROLE_STUDENT")
+
+                        // ✅ FIX: Allow students to CANCEL bookings (DELETE /api/bookings/{id})
+                        .requestMatchers(HttpMethod.DELETE, "/api/bookings/**").hasAuthority("ROLE_STUDENT")
 
                         // Fallback GET for /api/bookings if needed
                         .requestMatchers(HttpMethod.GET, "/api/bookings/**").hasAuthority("ROLE_STUDENT")

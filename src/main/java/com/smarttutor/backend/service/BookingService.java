@@ -23,7 +23,6 @@ public class BookingService {
     private final UserRepository userRepository;
     private final AvailabilityRepository availabilityRepository;
 
-    // Full constructor to inject all required dependencies
     public BookingService(BookingRepository bookingRepository,
                           TeacherProfileRepository teacherProfileRepository,
                           UserRepository userRepository,
@@ -37,6 +36,8 @@ public class BookingService {
     // CREATE a new booking
     @Transactional
     public Booking createBooking(String userEmail, BookingRequest request) {
+        // ... (Existing logic for fetching user, teacher, slot, marking booked, and saving)
+
         // 1. Fetch User (Student)
         User student = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("Student not found: " + userEmail));
@@ -46,7 +47,6 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + request.getTeacherId()));
 
         // 3. Fetch Availability Slot
-        // Note: BookingRequest must contain availabilityId for this to work
         Availability slot = availabilityRepository.findById(request.getAvailabilityId())
                 .orElseThrow(() -> new RuntimeException("Slot not found with ID: " + request.getAvailabilityId()));
 
@@ -72,16 +72,40 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
+    // ✅ NEW: Logic to cancel a booking
+    @Transactional
+    public void cancelBooking(Long bookingId, String studentEmail) {
+        // 1. Find the Booking
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
+
+        // 2. Authorization Check (Ensures student owns the booking)
+        if (!booking.getUser().getEmail().equalsIgnoreCase(studentEmail)) {
+            throw new RuntimeException("Authorization error: You can only cancel your own bookings.");
+        }
+
+        if (booking.getStatus().equals("CANCELLED")) {
+            throw new RuntimeException("Booking is already cancelled.");
+        }
+
+        // 3. Mark the Slot as Available
+        Availability slot = booking.getAvailability();
+        if (slot != null) {
+            slot.setBooked(false);
+            availabilityRepository.save(slot);
+        }
+
+        // 4. Update Booking Status
+        booking.setStatus("CANCELLED");
+        bookingRepository.save(booking);
+    }
+
     // RETRIEVE bookings for the frontend
     @Transactional(readOnly = true)
     public List<Booking> getStudentBookings(Long studentId) {
-
-        // 1. Find the User entity (Student)
+        // ... (Existing retrieval logic)
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + studentId));
-
-        // 2. Use the repository method to fetch all bookings associated with that User
-        // This relies on BookingRepository having: List<Booking> findByUser(User user);
         return bookingRepository.findByUser(student);
     }
 }
