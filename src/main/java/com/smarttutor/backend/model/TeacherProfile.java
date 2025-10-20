@@ -1,5 +1,6 @@
 package com.smarttutor.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // CRITICAL IMPORT
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,6 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Table(name = "teacher_profiles")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // CRITICAL FIX
 public class TeacherProfile {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,10 +22,9 @@ public class TeacherProfile {
     private Double hourlyRate;
 
     @Column(nullable = true)
-    private String skills; // ✅ added skills
+    private String skills;
 
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 }
-

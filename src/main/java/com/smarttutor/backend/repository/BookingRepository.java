@@ -1,9 +1,15 @@
 package com.smarttutor.backend.repository;
 
 import com.smarttutor.backend.model.Booking;
+import com.smarttutor.backend.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import java.util.List;
 
-@Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
+
+    /**
+     * Finds all Booking entities where the 'user' field matches the provided User object.
+     * CRITICAL: 'findByUser' must match the field name 'user' in the Booking.java entity.
+     */
+    List<Booking> findByUser(User user);
 }

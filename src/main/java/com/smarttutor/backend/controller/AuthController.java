@@ -35,7 +35,7 @@ public class AuthController {
         );
     }
 
-    // ✅ Login API (fixed)
+    // ✅ Login API (FIXED to include User ID)
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
         try {
@@ -48,6 +48,7 @@ public class AuthController {
             // Return token + user info as JSON
             return ResponseEntity.ok(Map.of(
                     "token", token,
+                    "id", user.getId(), // <--- FIX: Include the user's ID
                     "role", user.getRole().name(),
                     "name", user.getName(),
                     "email", user.getEmail()

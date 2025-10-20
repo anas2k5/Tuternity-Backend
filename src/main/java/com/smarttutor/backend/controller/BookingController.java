@@ -5,15 +5,14 @@ import com.smarttutor.backend.model.Booking;
 import com.smarttutor.backend.service.BookingService;
 import com.smarttutor.backend.security.JwtUtil;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/bookings")
 public class BookingController {
-
-    private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
 
     private final BookingService bookingService;
     private final JwtUtil jwtUtil;
@@ -23,11 +22,10 @@ public class BookingController {
         this.jwtUtil = jwtUtil;
     }
 
+    // Endpoint to CREATE a new booking (Your existing POST method)
     @PostMapping
     public Booking createBooking(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
                                  @RequestBody BookingRequest request) {
-
-        logger.info("Received booking request for teacher ID: {}", request.getTeacherId());
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             throw new RuntimeException("Authorization token is missing or invalid.");
@@ -35,8 +33,16 @@ public class BookingController {
 
         String token = authorizationHeader.substring(7);
         String email = jwtUtil.extractUsername(token);
-        logger.info("Extracted email: {}", email);
 
         return bookingService.createBooking(email, request);
+    }
+
+    // ✅ NEW: Endpoint to RETRIEVE a student's bookings
+    @GetMapping("/student/{studentId}")
+    public ResponseEntity<List<Booking>> getStudentBookings(@PathVariable Long studentId) {
+        List<Booking> bookings = bookingService.getStudentBookings(studentId);
+
+        // Returns the list of bookings (or an empty list if none are found)
+        return ResponseEntity.ok(bookings);
     }
 }

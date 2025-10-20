@@ -32,23 +32,24 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ✅ Allow React frontend
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/teacher/**").permitAll()
 
-                        // Booking: Students only
+                        // CRITICAL FIX: Allow students to RETRIEVE their own bookings (GET /api/bookings/student/{id})
+                        .requestMatchers(HttpMethod.GET, "/api/bookings/student/**").hasAuthority("ROLE_STUDENT")
+
+                        // Allow POST for booking creation
                         .requestMatchers(HttpMethod.POST, "/api/bookings/**").hasAuthority("ROLE_STUDENT")
 
-                        // View bookings (for testing)
-                        .requestMatchers(HttpMethod.GET, "/api/bookings/**").permitAll()
+                        // Fallback GET for /api/bookings if needed
+                        .requestMatchers(HttpMethod.GET, "/api/bookings/**").hasAuthority("ROLE_STUDENT")
 
-                        // Teachers can manage their profiles
+                        // Teachers and Admin rules
                         .requestMatchers(HttpMethod.POST, "/api/teacher/**").hasAuthority("ROLE_TEACHER")
-
-                        // Admin-only routes
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
                         // All others must be authenticated
@@ -61,7 +62,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // ✅ Allow frontend (React) CORS configuration
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();

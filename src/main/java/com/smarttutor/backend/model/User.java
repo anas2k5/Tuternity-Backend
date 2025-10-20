@@ -1,4 +1,6 @@
 package com.smarttutor.backend.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // CRITICAL IMPORT
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,7 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Table(name = "users")
-
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // CRITICAL FIX
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,5 +26,4 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private Role role;
-
 }
