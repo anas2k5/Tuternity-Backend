@@ -35,24 +35,36 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // 🛑 CRITICAL FIX: Explicitly allow POST for registration (public access) 🛑
+                        // This prevents the request from being blocked, even if the general /api/auth/** rule is overridden.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+
+                        // General Auth endpoints (including login)
                         .requestMatchers("/api/auth/**").permitAll()
+
+                        // Teacher List Viewing ( public access for browsing)
                         .requestMatchers(HttpMethod.GET, "/api/teacher/**").permitAll()
 
-                        // CRITICAL: Allow students to RETRIEVE their own bookings (GET /api/bookings/student/{id})
-                        .requestMatchers(HttpMethod.GET, "/api/bookings/student/**").hasAuthority("ROLE_STUDENT")
+                        // 🛑 TEACHER MANAGEMENT RULES 🛑
+                        .requestMatchers(HttpMethod.GET, "/api/teacher/profile").hasAuthority("ROLE_TEACHER")
+                        .requestMatchers(HttpMethod.PUT, "/api/teacher/profile").hasAuthority("ROLE_TEACHER")
 
-                        // Allow POST for booking creation
+                        // Availability Management
+                        .requestMatchers(HttpMethod.POST, "/api/availability/**").hasAuthority("ROLE_TEACHER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/availability/**").hasAuthority("ROLE_TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/availability/teacher").hasAuthority("ROLE_TEACHER")
+
+                        // Teacher creation/update (general POST, secured)
+                        .requestMatchers(HttpMethod.POST, "/api/teacher/**").hasAuthority("ROLE_TEACHER")
+
+
+                        // Booking/Student Rules
                         .requestMatchers(HttpMethod.POST, "/api/bookings/**").hasAuthority("ROLE_STUDENT")
-
-                        // ✅ FIX: Allow students to CANCEL bookings (DELETE /api/bookings/{id})
                         .requestMatchers(HttpMethod.DELETE, "/api/bookings/**").hasAuthority("ROLE_STUDENT")
-
-                        // Fallback GET for /api/bookings if needed
+                        .requestMatchers(HttpMethod.GET, "/api/bookings/student/**").hasAuthority("ROLE_STUDENT")
                         .requestMatchers(HttpMethod.GET, "/api/bookings/**").hasAuthority("ROLE_STUDENT")
 
-                        // Teachers and Admin rules
-                        .requestMatchers(HttpMethod.POST, "/api/teacher/**").hasAuthority("ROLE_TEACHER")
+                        // Admin-only routes
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
                         // All others must be authenticated
