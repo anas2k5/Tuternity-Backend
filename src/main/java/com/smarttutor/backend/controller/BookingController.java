@@ -1,8 +1,8 @@
 package com.smarttutor.backend.controller;
 
-import com.smarttutor.backend.model.Booking;
 import com.smarttutor.backend.dto.BookingRequest;
-
+import com.smarttutor.backend.dto.BookingResponseDTO;
+import com.smarttutor.backend.model.Booking;
 import com.smarttutor.backend.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,14 +39,14 @@ public class BookingController {
     // ✅ Get bookings for a student
     @GetMapping("/student/{studentId}")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<List<Booking>> getBookingsByStudent(@PathVariable Long studentId) {
+    public ResponseEntity<List<BookingResponseDTO>> getBookingsByStudent(@PathVariable Long studentId) {
         return ResponseEntity.ok(bookingService.getBookingsByStudent(studentId));
     }
 
     // ✅ Get bookings for a teacher
     @GetMapping("/teacher/{teacherId}")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<List<Booking>> getBookingsByTeacher(@PathVariable Long teacherId) {
+    public ResponseEntity<List<BookingResponseDTO>> getBookingsByTeacher(@PathVariable Long teacherId) {
         return ResponseEntity.ok(bookingService.getBookingsByTeacher(teacherId));
     }
 

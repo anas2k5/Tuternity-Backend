@@ -5,31 +5,34 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity
-@Data
+@Table(name = "availabilities")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "availability")
 public class Availability {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id")
+    private TeacherProfile teacher;
+
+    @Column(name = "available_date")  // ✅ FIX: avoid reserved keyword
     private LocalDate date;
 
+    @Column(name = "start_time")
     private LocalTime startTime;
 
+    @Column(name = "end_time")
     private LocalTime endTime;
 
-    // ✅ Correct boolean mapping
-    @Builder.Default
-    @Column(name = "booked", nullable = false)
-    private boolean booked = false;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "teacher_id", nullable = false)
-    private TeacherProfile teacher;
+    @Column(name = "booked")
+    private boolean booked;
 }

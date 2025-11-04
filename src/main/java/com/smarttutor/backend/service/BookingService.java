@@ -19,45 +19,54 @@ public class BookingService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final AvailabilityRepository availabilityRepository;
 
+    // ✅ Create a new booking
     @Transactional
     public Booking createBooking(String studentEmail, Long teacherId, Long availabilityId) {
-        User user = userRepository.findByEmail(studentEmail)
+        User student = userRepository.findByEmail(studentEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        studentRepository.findByUserId(user.getId())
+
+        studentRepository.findByUserId(student.getId())
                 .orElseThrow(() -> new RuntimeException("Student not found"));
 
         TeacherProfile teacher = teacherProfileRepository.findById(teacherId)
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
         Availability slot = availabilityRepository.findById(availabilityId)
                 .orElseThrow(() -> new RuntimeException("Slot not found"));
 
-        if (slot.isBooked()) throw new RuntimeException("This slot is already booked");
+        if (slot.isBooked()) {
+            throw new RuntimeException("This slot is already booked");
+        }
 
+        // ✅ Mark slot as booked
         slot.setBooked(true);
         availabilityRepository.save(slot);
 
+        // ✅ Create booking entry
         Booking booking = new Booking();
-        booking.setUser(user);
+        booking.setStudent(student);
         booking.setTeacher(teacher);
         booking.setAvailability(slot);
-        booking.setStatus("CONFIRMED");
         booking.setDate(slot.getDate());
-        booking.setTimeSlot(slot.getStartTime() + " - " + slot.getEndTime());
+        booking.setStartTime(slot.getStartTime());
+        booking.setEndTime(slot.getEndTime());
+        booking.setStatus("CONFIRMED");
 
         return bookingRepository.save(booking);
     }
 
-    public List<BookingResponseDTO> getBookingsByStudentId(Long studentId) {
-        List<Booking> bookings = bookingRepository.findByUser_Id(studentId);
+    // ✅ Get all bookings by student ID
+    public List<BookingResponseDTO> getBookingsByStudent(Long studentId) {
+        List<Booking> bookings = bookingRepository.findByStudent_Id(studentId);
 
         return bookings.stream().map(b -> {
             BookingResponseDTO dto = new BookingResponseDTO();
             dto.setId(b.getId());
             dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-            dto.setTimeSlot(b.getTimeSlot() != null ? b.getTimeSlot() : "-");
-            dto.setStatus(b.getStatus() != null ? b.getStatus() : "CONFIRMED");
+            dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+            dto.setStatus(b.getStatus());
 
-            if (b.getTeacher() != null && b.getTeacher().getUser() != null) {
+            if (b.getTeacher() != null) {
                 dto.setTeacherName(b.getTeacher().getUser().getName());
                 dto.setSubject(b.getTeacher().getSubject());
                 dto.setSkills(b.getTeacher().getSkills());
@@ -67,14 +76,35 @@ public class BookingService {
         }).toList();
     }
 
+    // ✅ Get all bookings by teacher ID
+    public List<BookingResponseDTO> getBookingsByTeacher(Long teacherId) {
+        List<Booking> bookings = bookingRepository.findByTeacher_Id(teacherId);
+
+        return bookings.stream().map(b -> {
+            BookingResponseDTO dto = new BookingResponseDTO();
+            dto.setId(b.getId());
+            dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
+            dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+            dto.setStatus(b.getStatus());
+
+            if (b.getStudent() != null) {
+                dto.setTeacherName(b.getStudent().getName());
+            }
+
+            return dto;
+        }).toList();
+    }
+
+    // ✅ Cancel a booking
     @Transactional
     public void cancelBooking(Long bookingId, String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        if (!booking.getUser().getId().equals(user.getId())) {
+        if (!booking.getStudent().getId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized to cancel this booking");
         }
 
@@ -84,15 +114,5 @@ public class BookingService {
 
         booking.setStatus("CANCELLED");
         bookingRepository.save(booking);
-    }
-
-    // ✅ NEW: Fetch all bookings for a student (full entities)
-    public List<Booking> getBookingsByStudent(Long studentId) {
-        return bookingRepository.findByUser_Id(studentId);
-    }
-
-    // ✅ NEW: Fetch all bookings for a teacher (full entities)
-    public List<Booking> getBookingsByTeacher(Long teacherId) {
-        return bookingRepository.findByTeacher_Id(teacherId);
     }
 }

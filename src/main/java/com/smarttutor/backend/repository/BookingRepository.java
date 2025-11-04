@@ -18,11 +18,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findByAvailability(Availability availability);
 
     // ✅ Get all bookings of a specific student
-    List<Booking> findByUser_Id(Long userId);
+    List<Booking> findByStudent_Id(Long studentId);
 
     // ✅ Get all bookings of a specific teacher
     List<Booking> findByTeacher_Id(Long teacherId);
 
     // ✅ Check if a student has already booked a teacher on a given date
-    boolean existsByUserAndTeacherAndDate(User user, TeacherProfile teacher, LocalDate date);
+    boolean existsByStudentAndTeacherAndDate(User student, TeacherProfile teacher, LocalDate date);
 }

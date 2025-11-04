@@ -21,7 +21,7 @@ public class DataSeeder implements CommandLineRunner {
     private final AvailabilityRepository availabilityRepo;
 
     @Override
-    @Transactional  // ✅ Keeps session open during seeding
+    @Transactional
     public void run(String... args) {
         System.out.println("🔹 Running DataSeeder...");
         seedAvailabilityForTeachers();
@@ -58,7 +58,7 @@ public class DataSeeder implements CommandLineRunner {
             for (int hour = 10; hour <= 14; hour++) {
                 Availability slot = Availability.builder()
                         .teacher(teacher)
-                        .date(date)
+                        .date(date) // ✅ Saves into `available_date` column
                         .startTime(LocalTime.of(hour, 0))
                         .endTime(LocalTime.of(hour + 1, 0))
                         .booked(false)
