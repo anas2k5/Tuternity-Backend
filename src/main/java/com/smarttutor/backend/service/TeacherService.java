@@ -32,11 +32,12 @@ public class TeacherService {
     public TeacherProfile getProfileByEmail(String email) {
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
+
         return teacherRepo.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Teacher profile not found for: " + email));
     }
 
-    // ✅ Update teacher profile
+    // ✅ Update teacher profile (and user name)
     public TeacherProfile updateProfile(String email, TeacherProfileRequest request) {
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
@@ -44,6 +45,13 @@ public class TeacherService {
         TeacherProfile profile = teacherRepo.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
 
+        // Update user name if changed
+        if (request.getName() != null && !request.getName().isBlank()) {
+            user.setName(request.getName());
+            userRepo.save(user);
+        }
+
+        // Update teacher-specific fields
         profile.setSubject(request.getSubject());
         profile.setSkills(request.getSkills());
         profile.setExperienceYears(request.getExperienceYears());
