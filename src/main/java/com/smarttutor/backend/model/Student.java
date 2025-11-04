@@ -1,57 +1,30 @@
 package com.smarttutor.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
-@Table(name = "student")
+@Table(name = "students")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Student {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
-    @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true)
+    // ✅ One user → one student profile
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true, nullable = false)
+    @JsonIgnoreProperties({"password", "role"})
     private User user;
 
     private String grade;
+
     private String schoolName;
-
-    public Student() {}
-
-    public Student(User user) {
-        this.user = user;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public String getGrade() {
-        return grade;
-    }
-
-    public void setGrade(String grade) {
-        this.grade = grade;
-    }
-
-    public String getSchoolName() {
-        return schoolName;
-    }
-
-    public void setSchoolName(String schoolName) {
-        this.schoolName = schoolName;
-    }
 }

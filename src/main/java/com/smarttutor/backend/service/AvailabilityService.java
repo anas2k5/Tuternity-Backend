@@ -1,44 +1,43 @@
 package com.smarttutor.backend.service;
 
-import com.smarttutor.backend.dto.AvailabilityRequest;
 import com.smarttutor.backend.model.Availability;
 import com.smarttutor.backend.model.TeacherProfile;
 import com.smarttutor.backend.repository.AvailabilityRepository;
 import com.smarttutor.backend.repository.TeacherProfileRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AvailabilityService {
 
-    private final AvailabilityRepository availabilityRepo;
-    private final TeacherProfileRepository teacherRepo;
+    private final AvailabilityRepository availabilityRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
 
-    public AvailabilityService(AvailabilityRepository availabilityRepo, TeacherProfileRepository teacherRepo) {
-        this.availabilityRepo = availabilityRepo;
-        this.teacherRepo = teacherRepo;
+    public Availability addAvailability(Long teacherId, LocalDate date, LocalTime startTime, LocalTime endTime) {
+        TeacherProfile teacher = teacherProfileRepository.findByUserId(teacherId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+        Availability availability = new Availability();
+        availability.setTeacher(teacher);
+        availability.setDate(date);
+        availability.setStartTime(startTime);
+        availability.setEndTime(endTime);
+        return availabilityRepository.save(availability);
     }
 
-    public Availability addAvailability(Long teacherId, AvailabilityRequest request) {
-        TeacherProfile teacher = teacherRepo.findById(teacherId)
-                .orElseThrow(() -> new RuntimeException("Teacher not found"));
-
-        Availability availability = Availability.builder()
-                .teacherProfile(teacher)
-                .date(request.getStartTime().toLocalDate())          // extract date
-                .startTime(request.getStartTime().toLocalTime())    // extract start time
-                .endTime(request.getEndTime().toLocalTime())        // extract end time
-                .booked(false)
-                .build();
-
-        return availabilityRepo.save(availability);
+    public List<Availability> getAvailabilityByTeacher(Long teacherId) {
+        return availabilityRepository.findByTeacher_User_Id(teacherId);
     }
 
-    public List<Availability> getTeacherAvailability(Long teacherId) {
-        TeacherProfile teacher = teacherRepo.findById(teacherId)
-                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+    public void deleteAvailability(Long id) {
+        availabilityRepository.deleteById(id);
+    }
 
-        return availabilityRepo.findByTeacherProfile(teacher);
+    public List<Availability> getAllAvailabilities() {
+        return availabilityRepository.findAll();
     }
 }

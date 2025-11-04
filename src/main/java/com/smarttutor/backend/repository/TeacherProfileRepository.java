@@ -1,18 +1,23 @@
 package com.smarttutor.backend.repository;
 
 import com.smarttutor.backend.model.TeacherProfile;
-import com.smarttutor.backend.model.User; // CRITICAL: Import User entity
+import com.smarttutor.backend.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, Long> {
 
-    /**
-     * Finds a TeacherProfile entity by the associated User entity.
-     * This is required for secure 'Manage Profile' functionality (using the JWT-extracted User).
-     */
     Optional<TeacherProfile> findByUser(User user);
+
+    Optional<TeacherProfile> findByUserId(Long userId);
+
+    // ✅ Add this missing method to fix your DataSeeder compilation error
+    Optional<TeacherProfile> findByUserEmail(String email);
+
+    List<TeacherProfile> findByCityIgnoreCase(String city);
+    List<TeacherProfile> findBySubjectIgnoreCase(String subject);
 }

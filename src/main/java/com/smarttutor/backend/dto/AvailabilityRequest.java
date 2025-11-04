@@ -1,17 +1,13 @@
 package com.smarttutor.backend.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.Data;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
-import java.time.LocalDateTime;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Data
 public class AvailabilityRequest {
-    private LocalDateTime startTime;  // full datetime (date + time)
-    private LocalDateTime endTime;    // full datetime (date + time)
+    private Long teacherId;
+    private LocalDate date;
+    private LocalTime startTime;
+    private LocalTime endTime;
 }

@@ -1,63 +1,63 @@
 package com.smarttutor.backend.controller;
 
-import com.smarttutor.backend.dto.BookingRequest;
 import com.smarttutor.backend.model.Booking;
+import com.smarttutor.backend.dto.BookingRequest;
+
 import com.smarttutor.backend.service.BookingService;
-import com.smarttutor.backend.security.JwtUtil;
-import org.springframework.http.HttpHeaders;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/bookings")
+@RequiredArgsConstructor
 public class BookingController {
 
     private final BookingService bookingService;
-    private final JwtUtil jwtUtil;
 
-    public BookingController(BookingService bookingService, JwtUtil jwtUtil) {
-        this.bookingService = bookingService;
-        this.jwtUtil = jwtUtil;
-    }
-
-    // Endpoint to CREATE a new booking (POST)
+    // ✅ Create a booking (Student only)
     @PostMapping
-    public Booking createBooking(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader,
-                                 @RequestBody BookingRequest request) {
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<Booking> createBooking(
+            @RequestBody BookingRequest request,
+            Authentication authentication) {
 
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new RuntimeException("Authorization token is missing or invalid.");
-        }
+        String studentEmail = authentication.getName();
+        Booking booking = bookingService.createBooking(
+                studentEmail,
+                request.getTeacherId(),
+                request.getAvailabilityId()
+        );
 
-        String token = authorizationHeader.substring(7);
-        String email = jwtUtil.extractUsername(token);
-
-        return bookingService.createBooking(email, request);
+        return ResponseEntity.ok(booking);
     }
 
-    // Endpoint to RETRIEVE a student's bookings (GET)
+    // ✅ Get bookings for a student
     @GetMapping("/student/{studentId}")
-    public ResponseEntity<List<Booking>> getStudentBookings(@PathVariable Long studentId) {
-        List<Booking> bookings = bookingService.getStudentBookings(studentId);
-        return ResponseEntity.ok(bookings);
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<List<Booking>> getBookingsByStudent(@PathVariable Long studentId) {
+        return ResponseEntity.ok(bookingService.getBookingsByStudent(studentId));
     }
 
-    // ✅ NEW: Endpoint to CANCEL a booking (DELETE)
+    // ✅ Get bookings for a teacher
+    @GetMapping("/teacher/{teacherId}")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<List<Booking>> getBookingsByTeacher(@PathVariable Long teacherId) {
+        return ResponseEntity.ok(bookingService.getBookingsByTeacher(teacherId));
+    }
+
+    // ✅ Cancel booking (Student only)
     @DeleteMapping("/{bookingId}")
-    public ResponseEntity<Void> cancelBooking(@PathVariable Long bookingId,
-                                              @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<Void> cancelBooking(
+            @PathVariable Long bookingId,
+            Authentication authentication) {
 
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).build();
-        }
-
-        String token = authorizationHeader.substring(7);
-        String studentEmail = jwtUtil.extractUsername(token);
-
-        bookingService.cancelBooking(bookingId, studentEmail);
-
+        bookingService.cancelBooking(bookingId, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 }

@@ -19,11 +19,14 @@ public class JwtUtil {
     private final Key SECRET_KEY;
     private final long EXPIRATION_TIME;
 
-    // Inject values from application.properties
     public JwtUtil(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration}") long expirationTime
     ) {
+        // Ensure key length is strong enough
+        if (secret.length() < 32) {
+            throw new IllegalArgumentException("JWT secret key must be at least 32 characters long.");
+        }
         this.SECRET_KEY = Keys.hmacShaKeyFor(secret.getBytes());
         this.EXPIRATION_TIME = expirationTime;
     }
@@ -44,20 +47,17 @@ public class JwtUtil {
         return claimsResolver.apply(claims);
     }
 
-    // ✅ Generate JWT Token with ROLE_ prefix
+    // ✅ Generate token with ROLE_ prefix
     public String generateToken(String username, String role) {
         Map<String, Object> claims = new HashMap<>();
-
-        // Ensure Spring Security recognizes the role
         if (!role.startsWith("ROLE_")) {
             role = "ROLE_" + role;
         }
-
         claims.put("role", role);
         return createToken(claims, username);
     }
 
-    // ✅ Create token with claims and expiration
+    // ✅ Create token with expiration
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .setClaims(claims)
@@ -68,10 +68,10 @@ public class JwtUtil {
                 .compact();
     }
 
-    // ✅ Validate token with username check
+    // ✅ Validate token
     public boolean validateToken(String token, String username) {
         final String extractedUsername = extractUsername(token);
-        return (extractedUsername.equals(username) && !isTokenExpired(token));
+        return extractedUsername.equals(username) && !isTokenExpired(token);
     }
 
     private boolean isTokenExpired(String token) {
