@@ -5,54 +5,69 @@ import com.smarttutor.backend.model.Booking;
 import com.smarttutor.backend.model.Payment;
 import com.smarttutor.backend.repository.BookingRepository;
 import com.smarttutor.backend.repository.PaymentRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class PaymentService {
 
     private final PaymentRepository paymentRepo;
     private final BookingRepository bookingRepo;
 
-    public PaymentService(PaymentRepository paymentRepo, BookingRepository bookingRepo) {
-        this.paymentRepo = paymentRepo;
-        this.bookingRepo = bookingRepo;
-    }
-
+    // ✅ Create or update payment before checkout
     public Payment makePayment(PaymentRequest request) {
-        // 1️⃣ Fetch booking
         Booking booking = bookingRepo.findById(request.getBookingId())
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
+        // prevent double payment
         if ("PAID".equalsIgnoreCase(booking.getStatus())) {
             throw new RuntimeException("Booking already paid");
         }
 
-        // 2️⃣ Create payment
-        Payment payment = Payment.builder()
-                .booking(booking)
-                .amount(request.getAmount())
-                .status("SUCCESS") // Mock payment
-                .transactionId("TXN" + System.currentTimeMillis())
-                .build();
+        // check if a payment already exists
+        Payment payment = paymentRepo.findByBooking(booking).orElse(null);
 
-        Payment savedPayment = paymentRepo.save(payment);
+        if (payment == null) {
+            payment = Payment.builder()
+                    .booking(booking)
+                    .amount(request.getAmount())
+                    .status("PENDING")
+                    .transactionId("TXN" + System.currentTimeMillis())
+                    .build();
+        } else {
+            payment.setAmount(request.getAmount());
+            payment.setStatus("PENDING");
+            payment.setTransactionId("TXN" + System.currentTimeMillis());
+        }
 
-        // 3️⃣ Update booking status
+        return paymentRepo.save(payment);
+    }
+
+    // ✅ Update payment status to SUCCESS when Stripe confirms
+    public Payment markPaymentSuccessful(Long bookingId) {
+        Booking booking = bookingRepo.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        Payment payment = paymentRepo.findByBooking(booking)
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+        payment.setStatus("SUCCESS");
         booking.setStatus("PAID");
+
+        paymentRepo.save(payment);
         bookingRepo.save(booking);
 
-        return savedPayment;
+        return payment;
     }
 
     public Payment getPaymentByBooking(Long bookingId) {
         Booking booking = bookingRepo.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        // ✅ Use Optional to avoid compilation errors
-        Optional<Payment> paymentOpt = paymentRepo.findByBooking(booking);
-
-        return paymentOpt.orElseThrow(() -> new RuntimeException("Payment not found"));
+        return paymentRepo.findByBooking(booking)
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
     }
 }

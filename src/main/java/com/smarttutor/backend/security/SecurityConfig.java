@@ -34,10 +34,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public endpoints
+                        // ✅ Public endpoints (open access)
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/stripe/**").permitAll()
+                        .requestMatchers("/api/payments/**").permitAll()
 
-                        // ✅ Allow everyone (students, teachers, or guests) to view teachers list
+                        // ✅ Allow everyone to view teachers
                         .requestMatchers(HttpMethod.GET, "/api/teachers", "/api/teachers/**").permitAll()
 
                         // ✅ Student endpoints
@@ -48,17 +50,15 @@ public class SecurityConfig {
                         // ✅ Teacher endpoints
                         .requestMatchers("/api/teachers/me", "/api/teachers/me/**").hasRole("TEACHER")
                         .requestMatchers("/api/teachers/profile", "/api/teachers/profile/**").hasRole("TEACHER")
-                        // Backward compatibility (but only for teachers' private actions)
                         .requestMatchers(HttpMethod.PUT, "/api/teacher/**").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.POST, "/api/teacher/**").hasRole("TEACHER")
 
                         // ✅ Admin endpoints (future)
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // ✅ Everything else must be authenticated
+                        // ✅ All others require authentication
                         .anyRequest().authenticated()
                 )
-                // ✅ Add JWT filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
