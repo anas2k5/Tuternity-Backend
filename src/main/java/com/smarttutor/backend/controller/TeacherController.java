@@ -12,38 +12,55 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/teacher")
+@RequestMapping("/api/teachers")
 @CrossOrigin(origins = "http://localhost:3000")
 @RequiredArgsConstructor
 public class TeacherController {
 
     private final TeacherService teacherService;
 
-    // ✅ Public - view all teachers
+    // ✅ Public - get all teachers
     @GetMapping
     public List<TeacherProfile> getAllTeachers() {
         return teacherService.getAllTeachers();
     }
 
-    // ✅ Public - view specific teacher
+    // ✅ Public - get specific teacher by ID
     @GetMapping("/{id}")
     public TeacherProfile getTeacherById(@PathVariable Long id) {
         return teacherService.getProfile(id);
     }
 
-    // ✅ Teacher-only - fetch own profile
-    @GetMapping("/profile")
+    // ✅ Authenticated Teacher - get own profile
+    @GetMapping("/me")
     @PreAuthorize("hasRole('TEACHER')")
-    public TeacherProfile getTeacherProfile(Authentication authentication) {
-        String email = authentication.getName(); // email comes from JWT
+    public TeacherProfile getOwnProfile(Authentication authentication) {
+        String email = authentication.getName();
         return teacherService.getProfileByEmail(email);
     }
 
-    // ✅ Teacher-only - update own profile
+    // ✅ Authenticated Teacher - update own profile
+    @PutMapping("/me")
+    @PreAuthorize("hasRole('TEACHER')")
+    public TeacherProfile updateOwnProfile(Authentication authentication,
+                                           @RequestBody TeacherProfileRequest request) {
+        String email = authentication.getName();
+        return teacherService.updateProfile(email, request);
+    }
+
+    // ✅ Compatibility routes (for older frontend)
+    @GetMapping("/profile")
+    @PreAuthorize("hasRole('TEACHER')")
+    public TeacherProfile getProfileCompat(Authentication authentication) {
+        String email = authentication.getName();
+        return teacherService.getProfileByEmail(email);
+    }
+
     @PutMapping("/profile")
     @PreAuthorize("hasRole('TEACHER')")
-    public TeacherProfile updateProfile(Authentication authentication, @RequestBody TeacherProfileRequest request) {
-        String email = authentication.getName(); // extract email from JWT
+    public TeacherProfile updateProfileCompat(Authentication authentication,
+                                              @RequestBody TeacherProfileRequest request) {
+        String email = authentication.getName();
         return teacherService.updateProfile(email, request);
     }
 }

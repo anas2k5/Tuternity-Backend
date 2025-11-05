@@ -8,7 +8,11 @@ public class BookingResponseDTO {
     private String date;
     private String timeSlot;
     private String status;
-    private String teacherName;
+
+    private String teacherName;  // for student view
     private String subject;
     private String skills;
+
+    private String studentName;  // for teacher view
+    private String studentEmail;
 }

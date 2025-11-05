@@ -15,11 +15,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/bookings")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000")
 public class BookingController {
 
     private final BookingService bookingService;
 
-    // ✅ Create a booking (Student only)
+    // ✅ Create a booking (Student)
     @PostMapping
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<Booking> createBooking(
@@ -32,25 +33,24 @@ public class BookingController {
                 request.getTeacherId(),
                 request.getAvailabilityId()
         );
-
         return ResponseEntity.ok(booking);
     }
 
-    // ✅ Get bookings for a student
+    // ✅ Get bookings by Student
     @GetMapping("/student/{studentId}")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<List<BookingResponseDTO>> getBookingsByStudent(@PathVariable Long studentId) {
         return ResponseEntity.ok(bookingService.getBookingsByStudent(studentId));
     }
 
-    // ✅ Get bookings for a teacher
+    // ✅ Get bookings by Teacher
     @GetMapping("/teacher/{teacherId}")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<List<BookingResponseDTO>> getBookingsByTeacher(@PathVariable Long teacherId) {
         return ResponseEntity.ok(bookingService.getBookingsByTeacher(teacherId));
     }
 
-    // ✅ Cancel booking (Student only)
+    // ✅ Cancel booking (Student)
     @DeleteMapping("/{bookingId}")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<Void> cancelBooking(
@@ -58,6 +58,17 @@ public class BookingController {
             Authentication authentication) {
 
         bookingService.cancelBooking(bookingId, authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
+    // ✅ Cancel booking (Teacher)
+    @DeleteMapping("/teacher/cancel/{bookingId}")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<Void> cancelBookingByTeacher(
+            @PathVariable Long bookingId,
+            Authentication authentication) {
+
+        bookingService.cancelBookingByTeacher(bookingId, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 }

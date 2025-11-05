@@ -1,6 +1,5 @@
 package com.smarttutor.backend.security;
 
-import com.smarttutor.backend.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,19 +34,31 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // ✅ Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
 
-                        // Booking endpoints (require authentication)
+                        // ✅ Allow everyone (students, teachers, or guests) to view teachers list
+                        .requestMatchers(HttpMethod.GET, "/api/teachers", "/api/teachers/**").permitAll()
+
+                        // ✅ Student endpoints
                         .requestMatchers(HttpMethod.POST, "/api/bookings").hasRole("STUDENT")
                         .requestMatchers(HttpMethod.GET, "/api/bookings/student/**").hasRole("STUDENT")
-                        .requestMatchers(HttpMethod.GET, "/api/bookings/teacher/**").hasRole("TEACHER")
-                        .requestMatchers(HttpMethod.DELETE, "/api/bookings/**").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.DELETE, "/api/bookings/**").hasAnyRole("STUDENT", "TEACHER")
 
-                        // Any other request must be authenticated
+                        // ✅ Teacher endpoints
+                        .requestMatchers("/api/teachers/me", "/api/teachers/me/**").hasRole("TEACHER")
+                        .requestMatchers("/api/teachers/profile", "/api/teachers/profile/**").hasRole("TEACHER")
+                        // Backward compatibility (but only for teachers' private actions)
+                        .requestMatchers(HttpMethod.PUT, "/api/teacher/**").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/teacher/**").hasRole("TEACHER")
+
+                        // ✅ Admin endpoints (future)
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // ✅ Everything else must be authenticated
                         .anyRequest().authenticated()
                 )
-                // Add JWT filter
+                // ✅ Add JWT filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -59,7 +70,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of("http://localhost:3000"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        config.setAllowCredentials(true); // allows cookies / JWT in headers
+        config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

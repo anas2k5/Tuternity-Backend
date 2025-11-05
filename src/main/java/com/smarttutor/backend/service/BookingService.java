@@ -19,7 +19,7 @@ public class BookingService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final AvailabilityRepository availabilityRepository;
 
-    // ✅ Create a new booking
+    // ✅ Create a new booking (Student side)
     @Transactional
     public Booking createBooking(String studentEmail, Long teacherId, Long availabilityId) {
         User student = userRepository.findByEmail(studentEmail)
@@ -38,11 +38,11 @@ public class BookingService {
             throw new RuntimeException("This slot is already booked");
         }
 
-        // ✅ Mark slot as booked
+        // Mark slot as booked
         slot.setBooked(true);
         availabilityRepository.save(slot);
 
-        // ✅ Create booking entry
+        // Create booking
         Booking booking = new Booking();
         booking.setStudent(student);
         booking.setTeacher(teacher);
@@ -55,47 +55,44 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
-    // ✅ Get all bookings by student ID
+    // ✅ Get all bookings by Student ID (Student Dashboard)
     public List<BookingResponseDTO> getBookingsByStudent(Long studentId) {
-        List<Booking> bookings = bookingRepository.findByStudent_Id(studentId);
+        return bookingRepository.findByStudent_Id(studentId).stream()
+                .map(b -> {
+                    BookingResponseDTO dto = new BookingResponseDTO();
+                    dto.setId(b.getId());
+                    dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
+                    dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+                    dto.setStatus(b.getStatus());
 
-        return bookings.stream().map(b -> {
-            BookingResponseDTO dto = new BookingResponseDTO();
-            dto.setId(b.getId());
-            dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-            dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
-            dto.setStatus(b.getStatus());
-
-            if (b.getTeacher() != null) {
-                dto.setTeacherName(b.getTeacher().getUser().getName());
-                dto.setSubject(b.getTeacher().getSubject());
-                dto.setSkills(b.getTeacher().getSkills());
-            }
-
-            return dto;
-        }).toList();
+                    if (b.getTeacher() != null) {
+                        dto.setTeacherName(b.getTeacher().getUser().getName());
+                        dto.setSubject(b.getTeacher().getSubject());
+                        dto.setSkills(b.getTeacher().getSkills());
+                    }
+                    return dto;
+                }).toList();
     }
 
-    // ✅ Get all bookings by teacher ID
+    // ✅ Get all bookings by Teacher ID (Teacher Dashboard)
     public List<BookingResponseDTO> getBookingsByTeacher(Long teacherId) {
-        List<Booking> bookings = bookingRepository.findByTeacher_Id(teacherId);
+        return bookingRepository.findByTeacher_Id(teacherId).stream()
+                .map(b -> {
+                    BookingResponseDTO dto = new BookingResponseDTO();
+                    dto.setId(b.getId());
+                    dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
+                    dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+                    dto.setStatus(b.getStatus());
 
-        return bookings.stream().map(b -> {
-            BookingResponseDTO dto = new BookingResponseDTO();
-            dto.setId(b.getId());
-            dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-            dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
-            dto.setStatus(b.getStatus());
-
-            if (b.getStudent() != null) {
-                dto.setTeacherName(b.getStudent().getName());
-            }
-
-            return dto;
-        }).toList();
+                    if (b.getStudent() != null) {
+                        dto.setStudentName(b.getStudent().getName());
+                        dto.setStudentEmail(b.getStudent().getEmail());
+                    }
+                    return dto;
+                }).toList();
     }
 
-    // ✅ Cancel a booking
+    // ✅ Cancel a booking (Student)
     @Transactional
     public void cancelBooking(Long bookingId, String email) {
         User user = userRepository.findByEmail(email)
@@ -108,11 +105,38 @@ public class BookingService {
             throw new RuntimeException("Unauthorized to cancel this booking");
         }
 
+        // Mark slot as available again
         Availability slot = booking.getAvailability();
         slot.setBooked(false);
         availabilityRepository.save(slot);
 
+        // Update booking status
         booking.setStatus("CANCELLED");
+        bookingRepository.save(booking);
+    }
+
+    // ✅ Cancel a booking (Teacher)
+    @Transactional
+    public void cancelBookingByTeacher(Long bookingId, String teacherEmail) {
+        User teacherUser = userRepository.findByEmail(teacherEmail)
+                .orElseThrow(() -> new RuntimeException("Teacher user not found"));
+
+        TeacherProfile teacher = teacherProfileRepository.findByUser(teacherUser)
+                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (!booking.getTeacher().getId().equals(teacher.getId())) {
+            throw new RuntimeException("Unauthorized to cancel this booking");
+        }
+
+        // Free the slot again
+        Availability slot = booking.getAvailability();
+        slot.setBooked(false);
+        availabilityRepository.save(slot);
+
+        booking.setStatus("CANCELLED_BY_TEACHER");
         bookingRepository.save(booking);
     }
 }

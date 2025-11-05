@@ -27,16 +27,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.userDetailsService = userDetailsService;
     }
 
-    // ✅ CRITICAL FIX: Tell Spring Security which paths to skip entirely
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-
-        // Skip paths related to public authentication (login and register)
         return path.startsWith("/api/auth/login") ||
                 path.startsWith("/api/auth/register");
     }
-
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -45,50 +41,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
 
-        // ✅ If the request was NOT skipped by shouldNotFilter, proceed with checking the token
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7); // remove "Bearer "
+        final String jwt = authHeader.substring(7);
+        final String username;
 
         try {
             username = jwtUtil.extractUsername(jwt);
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            // If the token is expired, do not process further, but allow the chain to continue
-            System.out.println("❌ JWT EXPIRED: " + e.getMessage());
+            System.out.println("❌ JWT expired: " + e.getMessage());
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ✅ If user not yet authenticated, validate the token
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             if (jwtUtil.validateToken(jwt, userDetails.getUsername())) {
                 String role = jwtUtil.extractRole(jwt);
-
-                // Use the role exactly as stored in the token (e.g. ROLE_STUDENT)
                 SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role);
 
                 UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                List.of(authority)
-                        );
-
+                        new UsernamePasswordAuthenticationToken(userDetails, null, List.of(authority));
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
-
-                // Optional: debug log (can remove later)
-                System.out.println("? Extracted username: " + username);
-                System.out.println("? Extracted role: " + role);
-                System.out.println("? Authorities being set: " + List.of(authority));
             }
         }
 

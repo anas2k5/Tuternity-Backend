@@ -23,31 +23,26 @@ public class JwtUtil {
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration}") long expirationTime
     ) {
-        // Ensure key length is strong enough
         if (secret.length() < 32) {
-            throw new IllegalArgumentException("JWT secret key must be at least 32 characters long.");
+            throw new IllegalArgumentException("JWT secret must be at least 32 characters long");
         }
         this.SECRET_KEY = Keys.hmacShaKeyFor(secret.getBytes());
         this.EXPIRATION_TIME = expirationTime;
     }
 
-    // ✅ Extract username (subject)
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    // ✅ Extract role from token
     public String extractRole(String token) {
         return extractAllClaims(token).get("role", String.class);
     }
 
-    // ✅ Generic claim extractor
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
-    // ✅ Generate token with ROLE_ prefix
     public String generateToken(String username, String role) {
         Map<String, Object> claims = new HashMap<>();
         if (!role.startsWith("ROLE_")) {
@@ -57,7 +52,6 @@ public class JwtUtil {
         return createToken(claims, username);
     }
 
-    // ✅ Create token with expiration
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
                 .setClaims(claims)
@@ -68,7 +62,6 @@ public class JwtUtil {
                 .compact();
     }
 
-    // ✅ Validate token
     public boolean validateToken(String token, String username) {
         final String extractedUsername = extractUsername(token);
         return extractedUsername.equals(username) && !isTokenExpired(token);

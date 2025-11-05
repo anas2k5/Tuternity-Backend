@@ -9,9 +9,9 @@ public class TeacherProfileRequest {
     private String name;
     private String subject;
     private String skills;
-    private int experienceYears;
-    private double hourlyRate;
+    private Integer experienceYears;
+    private Double hourlyRate;
     private String bio;
     private String city;
-    private boolean available;
+    private Boolean available; // Wrapper instead of primitive
 }
