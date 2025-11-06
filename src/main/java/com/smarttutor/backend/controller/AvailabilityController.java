@@ -18,34 +18,43 @@ public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
 
-    // ✅ Teacher adds a new availability slot
+    // ✅ Add a new availability slot for the authenticated teacher
     @PostMapping
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<Availability> addAvailability(@RequestBody Availability request, Authentication auth) {
-        String email = auth.getName();
-        return ResponseEntity.ok(availabilityService.addAvailability(email, request));
+    public ResponseEntity<Availability> addAvailability(
+            @RequestBody Availability request,
+            Authentication authentication) {
+
+        String teacherEmail = authentication.getName();
+        Availability savedSlot = availabilityService.addAvailability(teacherEmail, request);
+        return ResponseEntity.ok(savedSlot);
     }
 
-    // ✅ Teacher gets their own slots
+    // ✅ Fetch logged-in teacher’s availability slots
     @GetMapping("/me")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<List<Availability>> getMyAvailabilities(Authentication auth) {
-        String email = auth.getName();
-        return ResponseEntity.ok(availabilityService.getAvailabilitiesByTeacherEmail(email));
+    public ResponseEntity<List<Availability>> getMyAvailabilities(Authentication authentication) {
+        String teacherEmail = authentication.getName();
+        List<Availability> availabilities = availabilityService.getAvailabilitiesByTeacherEmail(teacherEmail);
+        return ResponseEntity.ok(availabilities);
     }
 
-    // ✅ Public: get all slots of a teacher by teacherId
+    // ✅ Public: fetch availability slots by teacher ID
     @GetMapping("/teacher/{teacherId}")
     public ResponseEntity<List<Availability>> getByTeacher(@PathVariable Long teacherId) {
-        return ResponseEntity.ok(availabilityService.getAvailabilitiesByTeacherId(teacherId));
+        List<Availability> availabilities = availabilityService.getAvailabilitiesByTeacherId(teacherId);
+        return ResponseEntity.ok(availabilities);
     }
 
-    // ✅ Teacher deletes a slot
+    // ✅ Delete a slot owned by the teacher
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<Void> deleteAvailability(@PathVariable Long id, Authentication auth) {
-        String email = auth.getName();
-        availabilityService.deleteAvailability(email, id);
+    public ResponseEntity<Void> deleteAvailability(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        String teacherEmail = authentication.getName();
+        availabilityService.deleteAvailability(teacherEmail, id);
         return ResponseEntity.noContent().build();
     }
 }

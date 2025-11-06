@@ -3,7 +3,6 @@ package com.smarttutor.backend.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -21,13 +20,13 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ✅ Many bookings -> one student (User)
+    // ✅ Many bookings → One student
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-    private User student;
+    private Student student;
 
-    // ✅ Many bookings -> one teacher
+    // ✅ Many bookings → One teacher
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -43,5 +42,5 @@ public class Booking {
     private LocalTime startTime;
     private LocalTime endTime;
 
-    private String status; // e.g. "BOOKED", "CANCELLED"
+    private String status; // e.g. "PENDING", "PAID", "CANCELLED"
 }

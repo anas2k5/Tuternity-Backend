@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -36,18 +37,18 @@ public class BookingController {
         return ResponseEntity.ok(booking);
     }
 
-    // ✅ Get bookings by Student
-    @GetMapping("/student/{studentId}")
+    // ✅ Student bookings (userId)
+    @GetMapping("/student/{userId}")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<List<BookingResponseDTO>> getBookingsByStudent(@PathVariable Long studentId) {
-        return ResponseEntity.ok(bookingService.getBookingsByStudent(studentId));
+    public ResponseEntity<List<BookingResponseDTO>> getBookingsByStudentUserId(@PathVariable Long userId) {
+        return ResponseEntity.ok(bookingService.getBookingsByStudentUserId(userId));
     }
 
-    // ✅ Get bookings by Teacher
-    @GetMapping("/teacher/{teacherId}")
+    // ✅ Teacher bookings (userId)
+    @GetMapping("/teacher/{userId}")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<List<BookingResponseDTO>> getBookingsByTeacher(@PathVariable Long teacherId) {
-        return ResponseEntity.ok(bookingService.getBookingsByTeacher(teacherId));
+    public ResponseEntity<List<BookingResponseDTO>> getBookingsByTeacherUserId(@PathVariable Long userId) {
+        return ResponseEntity.ok(bookingService.getBookingsByTeacherUserId(userId));
     }
 
     // ✅ Cancel booking (Student)
@@ -70,5 +71,24 @@ public class BookingController {
 
         bookingService.cancelBookingByTeacher(bookingId, authentication.getName());
         return ResponseEntity.noContent().build();
+    }
+
+    // ✅ Mark booking as COMPLETED (Teacher)
+    @PutMapping("/{bookingId}/complete")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<?> markBookingAsCompleted(
+            @PathVariable Long bookingId,
+            Authentication authentication) {
+
+        try {
+            bookingService.markAsCompleted(bookingId, authentication.getName());
+            return ResponseEntity.ok(Map.of(
+                    "message", "Booking marked as completed successfully",
+                    "bookingId", bookingId,
+                    "status", "COMPLETED"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

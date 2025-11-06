@@ -18,13 +18,13 @@ public class Student {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ✅ One user → one student profile
+    private String phone;
+    private String city;
+    private String educationLevel;
+    private String interests;
+
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true, nullable = false)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     @JsonIgnoreProperties({"password", "role"})
     private User user;
-
-    private String grade;
-
-    private String schoolName;
 }

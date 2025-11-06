@@ -11,9 +11,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/stripe")
@@ -27,6 +30,7 @@ public class StripeController {
     @Value("${stripe.api.key}")
     private String stripeSecretKey;
 
+    // ✅ Create Stripe Checkout Session
     @PostMapping("/create-checkout-session/{bookingId}")
     public ResponseEntity<?> createCheckoutSession(@PathVariable Long bookingId) {
         try {
@@ -35,11 +39,12 @@ public class StripeController {
             Booking booking = bookingRepository.findById(bookingId)
                     .orElseThrow(() -> new RuntimeException("Booking not found with ID " + bookingId));
 
-            // ❌ prevent double payment
+            // ❌ Prevent double payment
             if (paymentRepository.existsByBookingId(bookingId)) {
                 Payment existing = paymentRepository.findByBookingId(bookingId).get();
                 if ("SUCCESS".equalsIgnoreCase(existing.getStatus())) {
-                    return ResponseEntity.badRequest().body(Map.of("error", "Payment already completed for this booking"));
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", "Payment already completed for this booking"));
                 }
             }
 
@@ -58,7 +63,8 @@ public class StripeController {
                                                     .setUnitAmount((long) amount)
                                                     .setProductData(
                                                             SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                                                    .setName("Tutoring Session with " + booking.getTeacher().getUser().getName())
+                                                                    .setName("Tutoring Session with " +
+                                                                            booking.getTeacher().getUser().getName())
                                                                     .build()
                                                     )
                                                     .build()
@@ -90,6 +96,7 @@ public class StripeController {
         }
     }
 
+    // ✅ Verify Payment Success
     @GetMapping("/success/{bookingId}")
     public ResponseEntity<?> verifyPayment(@PathVariable Long bookingId) {
         try {
@@ -119,6 +126,7 @@ public class StripeController {
         }
     }
 
+    // ✅ Cancel Payment
     @GetMapping("/cancel/{bookingId}")
     public ResponseEntity<?> cancelPayment(@PathVariable Long bookingId) {
         try {
@@ -138,6 +146,38 @@ public class StripeController {
                     "message", "Payment cancelled successfully",
                     "bookingId", bookingId
             ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ✅ Get all payments for a specific teacher (Dashboard stats)
+    @GetMapping("/payments/teacher/{teacherId}")
+    public ResponseEntity<?> getPaymentsByTeacher(@PathVariable Long teacherId) {
+        try {
+            List<Payment> payments = paymentRepository.findAll().stream()
+                    .filter(p -> p.getBooking() != null
+                            && p.getBooking().getTeacher() != null
+                            && teacherId.equals(p.getBooking().getTeacher().getId()))
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(payments);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ✅ Get all payments for a specific student (for future use)
+    @GetMapping("/payments/student/{studentId}")
+    public ResponseEntity<?> getPaymentsByStudent(@PathVariable Long studentId) {
+        try {
+            List<Payment> payments = paymentRepository.findAll().stream()
+                    .filter(p -> p.getBooking() != null
+                            && p.getBooking().getStudent() != null
+                            && studentId.equals(p.getBooking().getStudent().getId()))
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(payments);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

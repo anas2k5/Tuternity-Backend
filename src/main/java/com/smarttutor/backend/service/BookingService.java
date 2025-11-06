@@ -4,13 +4,18 @@ import com.smarttutor.backend.dto.BookingResponseDTO;
 import com.smarttutor.backend.model.*;
 import com.smarttutor.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class BookingService {
+
+    private static final Logger logger = LoggerFactory.getLogger(BookingService.class);
 
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
@@ -18,30 +23,30 @@ public class BookingService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final AvailabilityRepository availabilityRepository;
 
-    // ✅ Create a new booking (Student side)
+    // ✅ Create a new booking (Student)
     @Transactional
     public Booking createBooking(String studentEmail, Long teacherId, Long availabilityId) {
-        User student = userRepository.findByEmail(studentEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        logger.info("Creating booking for student: {}, teacherId: {}, availabilityId: {}", studentEmail, teacherId, availabilityId);
 
-        studentRepository.findByUserId(student.getId())
-                .orElseThrow(() -> new RuntimeException("Student not found"));
+        User studentUser = userRepository.findByEmail(studentEmail)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + studentEmail));
+
+        Student student = studentRepository.findByUserId(studentUser.getId())
+                .orElseThrow(() -> new RuntimeException("Student profile not found"));
 
         TeacherProfile teacher = teacherProfileRepository.findById(teacherId)
-                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+                .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + teacherId));
 
         Availability slot = availabilityRepository.findById(availabilityId)
-                .orElseThrow(() -> new RuntimeException("Slot not found"));
+                .orElseThrow(() -> new RuntimeException("Slot not found with ID: " + availabilityId));
 
-        if (slot.isBooked()) {
-            throw new RuntimeException("This slot is already booked");
+        if (slot.isBooked() || bookingRepository.existsByAvailabilityId(availabilityId)) {
+            throw new RuntimeException("This slot has already been booked. Please choose another one.");
         }
 
-        // Mark slot as booked
         slot.setBooked(true);
         availabilityRepository.save(slot);
 
-        // Create booking with status PENDING (payment not done yet)
         Booking booking = new Booking();
         booking.setStudent(student);
         booking.setTeacher(teacher);
@@ -49,58 +54,86 @@ public class BookingService {
         booking.setDate(slot.getDate());
         booking.setStartTime(slot.getStartTime());
         booking.setEndTime(slot.getEndTime());
-        booking.setStatus("PENDING"); // ⬅️ changed from CONFIRMED
+        booking.setStatus("PENDING");
 
-        return bookingRepository.save(booking);
+        Booking savedBooking = bookingRepository.save(booking);
+        logger.info("Booking successfully created with ID: {}", savedBooking.getId());
+        return savedBooking;
     }
 
-    // ✅ Get all bookings by Student ID (Student Dashboard)
+    // ✅ Get all bookings by Student (using studentId)
     public List<BookingResponseDTO> getBookingsByStudent(Long studentId) {
-        return bookingRepository.findByStudent_Id(studentId).stream()
-                .map(b -> {
-                    BookingResponseDTO dto = new BookingResponseDTO();
-                    dto.setId(b.getId());
-                    dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-                    dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
-                    dto.setStatus(b.getStatus());
-
-                    if (b.getTeacher() != null) {
-                        dto.setTeacherName(b.getTeacher().getUser().getName());
-                        dto.setSubject(b.getTeacher().getSubject());
-                        dto.setSkills(b.getTeacher().getSkills());
-                    }
-                    return dto;
-                }).toList();
+        logger.debug("Fetching bookings for studentId: {}", studentId);
+        return bookingRepository.findByStudent_Id(studentId).stream().map(b -> mapToStudentDTO(b)).toList();
     }
 
-    // ✅ Get all bookings by Teacher ID (Teacher Dashboard)
+    // ✅ Get all bookings by Student (using userId)
+    public List<BookingResponseDTO> getBookingsByStudentUserId(Long userId) {
+        logger.debug("Fetching bookings for student userId: {}", userId);
+        Student student = studentRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Student profile not found for userId: " + userId));
+        return bookingRepository.findByStudent_Id(student.getId()).stream().map(b -> mapToStudentDTO(b)).toList();
+    }
+
+    // ✅ Get all bookings by Teacher (using teacherId)
     public List<BookingResponseDTO> getBookingsByTeacher(Long teacherId) {
-        return bookingRepository.findByTeacher_Id(teacherId).stream()
-                .map(b -> {
-                    BookingResponseDTO dto = new BookingResponseDTO();
-                    dto.setId(b.getId());
-                    dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-                    dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
-                    dto.setStatus(b.getStatus());
-
-                    if (b.getStudent() != null) {
-                        dto.setStudentName(b.getStudent().getName());
-                        dto.setStudentEmail(b.getStudent().getEmail());
-                    }
-                    return dto;
-                }).toList();
+        logger.debug("Fetching bookings for teacherId: {}", teacherId);
+        return bookingRepository.findByTeacher_Id(teacherId).stream().map(b -> mapToTeacherDTO(b)).toList();
     }
 
-    // ✅ Cancel a booking (Student)
+    // ✅ Get all bookings by Teacher (using userId)
+    public List<BookingResponseDTO> getBookingsByTeacherUserId(Long userId) {
+        logger.debug("Fetching bookings for teacher userId: {}", userId);
+
+        TeacherProfile teacher = teacherProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Teacher profile not found for userId: " + userId));
+
+        return bookingRepository.findByTeacher_Id(teacher.getId()).stream().map(b -> mapToTeacherDTO(b)).toList();
+    }
+
+    // ✅ Helper – map booking for Student view
+    private BookingResponseDTO mapToStudentDTO(Booking b) {
+        BookingResponseDTO dto = new BookingResponseDTO();
+        dto.setId(b.getId());
+        dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
+        dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+        dto.setStatus(b.getStatus());
+
+        if (b.getTeacher() != null) {
+            dto.setTeacherName(b.getTeacher().getUser().getName());
+            dto.setSubject(b.getTeacher().getSubject());
+            dto.setSkills(b.getTeacher().getSkills());
+        }
+        return dto;
+    }
+
+    // ✅ Helper – map booking for Teacher view
+    private BookingResponseDTO mapToTeacherDTO(Booking b) {
+        BookingResponseDTO dto = new BookingResponseDTO();
+        dto.setId(b.getId());
+        dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
+        dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+        dto.setStatus(b.getStatus());
+
+        if (b.getStudent() != null) {
+            dto.setStudentName(b.getStudent().getUser().getName());
+            dto.setStudentEmail(b.getStudent().getUser().getEmail());
+        }
+        return dto;
+    }
+
+    // ✅ Cancel booking (Student)
     @Transactional
     public void cancelBooking(Long bookingId, String email) {
+        logger.info("Student {} attempting to cancel booking ID {}", email, bookingId);
+
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
 
-        if (!booking.getStudent().getId().equals(user.getId())) {
+        if (!booking.getStudent().getUser().getId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized to cancel this booking");
         }
 
@@ -108,19 +141,20 @@ public class BookingService {
             throw new RuntimeException("Cannot cancel a paid booking");
         }
 
-        // Mark slot as available again
         Availability slot = booking.getAvailability();
         slot.setBooked(false);
         availabilityRepository.save(slot);
 
-        // Update booking status
         booking.setStatus("CANCELLED");
         bookingRepository.save(booking);
+        logger.info("Booking ID {} cancelled successfully by student {}", bookingId, email);
     }
 
-    // ✅ Cancel a booking (Teacher)
+    // ✅ Cancel booking (Teacher)
     @Transactional
     public void cancelBookingByTeacher(Long bookingId, String teacherEmail) {
+        logger.info("Teacher {} attempting to cancel booking ID {}", teacherEmail, bookingId);
+
         User teacherUser = userRepository.findByEmail(teacherEmail)
                 .orElseThrow(() -> new RuntimeException("Teacher user not found"));
 
@@ -128,7 +162,7 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
 
         if (!booking.getTeacher().getId().equals(teacher.getId())) {
             throw new RuntimeException("Unauthorized to cancel this booking");
@@ -138,12 +172,39 @@ public class BookingService {
             throw new RuntimeException("Cannot cancel a paid booking");
         }
 
-        // Free the slot again
         Availability slot = booking.getAvailability();
         slot.setBooked(false);
         availabilityRepository.save(slot);
 
         booking.setStatus("CANCELLED_BY_TEACHER");
         bookingRepository.save(booking);
+    }
+
+    // ✅ Mark as completed (Teacher)
+    @Transactional
+    public void markAsCompleted(Long bookingId, String teacherEmail) {
+        logger.info("Teacher {} marking booking {} as completed", teacherEmail, bookingId);
+
+        User teacherUser = userRepository.findByEmail(teacherEmail)
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
+        TeacherProfile teacher = teacherProfileRepository.findByUser(teacherUser)
+                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (!booking.getTeacher().getId().equals(teacher.getId())) {
+            throw new RuntimeException("Unauthorized action");
+        }
+
+        if (!"PAID".equalsIgnoreCase(booking.getStatus())) {
+            throw new RuntimeException("Only paid bookings can be marked as completed");
+        }
+
+        booking.setStatus("COMPLETED");
+        bookingRepository.save(booking);
+
+        logger.info("Booking ID {} marked as COMPLETED by teacher {}", bookingId, teacherEmail);
     }
 }
