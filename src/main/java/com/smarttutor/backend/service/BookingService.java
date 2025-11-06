@@ -6,7 +6,6 @@ import com.smarttutor.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 
 @Service
@@ -42,7 +41,7 @@ public class BookingService {
         slot.setBooked(true);
         availabilityRepository.save(slot);
 
-        // Create booking
+        // Create booking with status PENDING (payment not done yet)
         Booking booking = new Booking();
         booking.setStudent(student);
         booking.setTeacher(teacher);
@@ -50,7 +49,7 @@ public class BookingService {
         booking.setDate(slot.getDate());
         booking.setStartTime(slot.getStartTime());
         booking.setEndTime(slot.getEndTime());
-        booking.setStatus("CONFIRMED");
+        booking.setStatus("PENDING"); // ⬅️ changed from CONFIRMED
 
         return bookingRepository.save(booking);
     }
@@ -105,6 +104,10 @@ public class BookingService {
             throw new RuntimeException("Unauthorized to cancel this booking");
         }
 
+        if ("PAID".equalsIgnoreCase(booking.getStatus())) {
+            throw new RuntimeException("Cannot cancel a paid booking");
+        }
+
         // Mark slot as available again
         Availability slot = booking.getAvailability();
         slot.setBooked(false);
@@ -129,6 +132,10 @@ public class BookingService {
 
         if (!booking.getTeacher().getId().equals(teacher.getId())) {
             throw new RuntimeException("Unauthorized to cancel this booking");
+        }
+
+        if ("PAID".equalsIgnoreCase(booking.getStatus())) {
+            throw new RuntimeException("Cannot cancel a paid booking");
         }
 
         // Free the slot again

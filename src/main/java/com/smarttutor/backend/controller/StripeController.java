@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +24,7 @@ public class StripeController {
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
 
-    @Value("${stripe.secret.key}")
+    @Value("${stripe.api.key}")
     private String stripeSecretKey;
 
     @PostMapping("/create-checkout-session/{bookingId}")
@@ -35,6 +34,14 @@ public class StripeController {
 
             Booking booking = bookingRepository.findById(bookingId)
                     .orElseThrow(() -> new RuntimeException("Booking not found with ID " + bookingId));
+
+            // ❌ prevent double payment
+            if (paymentRepository.existsByBookingId(bookingId)) {
+                Payment existing = paymentRepository.findByBookingId(bookingId).get();
+                if ("SUCCESS".equalsIgnoreCase(existing.getStatus())) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Payment already completed for this booking"));
+                }
+            }
 
             double amount = booking.getTeacher().getHourlyRate() * 100; // convert to paise/cents
 
@@ -68,12 +75,10 @@ public class StripeController {
                             .amount(booking.getTeacher().getHourlyRate())
                             .status("PENDING")
                             .transactionId(session.getId())
-                            .build()
-                    );
+                            .build());
 
             paymentRepository.save(payment);
 
-            // ✅ Return proper key names
             Map<String, Object> response = new HashMap<>();
             response.put("sessionId", session.getId());
             response.put("url", session.getUrl());
