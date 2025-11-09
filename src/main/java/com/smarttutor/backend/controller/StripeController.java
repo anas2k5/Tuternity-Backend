@@ -12,11 +12,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/stripe")
@@ -75,13 +73,18 @@ public class StripeController {
 
             Session session = Session.create(params);
 
+            // ✅ Ensure createdAt is set safely if it's a new payment
             Payment payment = paymentRepository.findByBookingId(bookingId)
-                    .orElse(Payment.builder()
-                            .booking(booking)
-                            .amount(booking.getTeacher().getHourlyRate())
-                            .status("PENDING")
-                            .transactionId(session.getId())
-                            .build());
+                    .orElseGet(() -> {
+                        Payment newPayment = Payment.builder()
+                                .booking(booking)
+                                .amount(booking.getTeacher().getHourlyRate())
+                                .status("PENDING")
+                                .transactionId(session.getId())
+                                .createdAt(LocalDateTime.now()) // ✅ ensure date is set
+                                .build();
+                        return newPayment;
+                    });
 
             paymentRepository.save(payment);
 
@@ -108,6 +111,9 @@ public class StripeController {
 
             if (!"SUCCESS".equalsIgnoreCase(payment.getStatus())) {
                 payment.setStatus("SUCCESS");
+                if (payment.getCreatedAt() == null) {
+                    payment.setCreatedAt(LocalDateTime.now()); // ✅ ensure timestamp if missing
+                }
                 paymentRepository.save(payment);
 
                 booking.setStatus("PAID");
@@ -151,18 +157,39 @@ public class StripeController {
         }
     }
 
-    // ✅ Get all payments for a specific teacher (Dashboard stats)
+    // ✅ Get all payments for a specific teacher (Dashboard)
     @GetMapping("/payments/teacher/{teacherId}")
     public ResponseEntity<?> getPaymentsByTeacher(@PathVariable Long teacherId) {
         try {
             List<Payment> payments = paymentRepository.findAll().stream()
-                    .filter(p -> p.getBooking() != null
-                            && p.getBooking().getTeacher() != null
-                            && teacherId.equals(p.getBooking().getTeacher().getId()))
+                    .filter(p -> {
+                        if (p.getBooking() == null || p.getBooking().getTeacher() == null) return false;
+
+                        Long profileId = p.getBooking().getTeacher().getId();
+                        Long userId = p.getBooking().getTeacher().getUser() != null
+                                ? p.getBooking().getTeacher().getUser().getId()
+                                : null;
+
+                        // ✅ Match both teacherProfile.id or teacher.user.id
+                        return teacherId.equals(profileId) || teacherId.equals(userId);
+                    })
+                    .sorted(Comparator.comparing(Payment::getCreatedAt,
+                            Comparator.nullsLast(Comparator.reverseOrder()))) // ✅ sort newest first, ignore nulls
+                    .limit(10)
                     .collect(Collectors.toList());
+
+            // ✅ Force-load nested data for serialization
+            payments.forEach(p -> {
+                if (p.getBooking() != null && p.getBooking().getStudent() != null
+                        && p.getBooking().getStudent().getUser() != null) {
+                    p.getBooking().getStudent().getUser().getName();
+                    p.getBooking().getStudent().getUser().getEmail();
+                }
+            });
 
             return ResponseEntity.ok(payments);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
