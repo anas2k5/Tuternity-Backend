@@ -64,7 +64,7 @@ public class BookingService {
     // ✅ Get all bookings by Student (using studentId)
     public List<BookingResponseDTO> getBookingsByStudent(Long studentId) {
         logger.debug("Fetching bookings for studentId: {}", studentId);
-        return bookingRepository.findByStudent_Id(studentId).stream().map(b -> mapToStudentDTO(b)).toList();
+        return bookingRepository.findByStudent_Id(studentId).stream().map(this::mapToStudentDTO).toList();
     }
 
     // ✅ Get all bookings by Student (using userId)
@@ -72,13 +72,13 @@ public class BookingService {
         logger.debug("Fetching bookings for student userId: {}", userId);
         Student student = studentRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Student profile not found for userId: " + userId));
-        return bookingRepository.findByStudent_Id(student.getId()).stream().map(b -> mapToStudentDTO(b)).toList();
+        return bookingRepository.findByStudent_Id(student.getId()).stream().map(this::mapToStudentDTO).toList();
     }
 
     // ✅ Get all bookings by Teacher (using teacherId)
     public List<BookingResponseDTO> getBookingsByTeacher(Long teacherId) {
         logger.debug("Fetching bookings for teacherId: {}", teacherId);
-        return bookingRepository.findByTeacher_Id(teacherId).stream().map(b -> mapToTeacherDTO(b)).toList();
+        return bookingRepository.findByTeacher_Id(teacherId).stream().map(this::mapToTeacherDTO).toList();
     }
 
     // ✅ Get all bookings by Teacher (using userId)
@@ -88,7 +88,7 @@ public class BookingService {
         TeacherProfile teacher = teacherProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Teacher profile not found for userId: " + userId));
 
-        return bookingRepository.findByTeacher_Id(teacher.getId()).stream().map(b -> mapToTeacherDTO(b)).toList();
+        return bookingRepository.findByTeacher_Id(teacher.getId()).stream().map(this::mapToTeacherDTO).toList();
     }
 
     // ✅ Helper – map booking for Student view
@@ -178,6 +178,33 @@ public class BookingService {
 
         booking.setStatus("CANCELLED_BY_TEACHER");
         bookingRepository.save(booking);
+    }
+
+    // ✅ Confirm booking (Teacher)
+    @Transactional
+    public void confirmBooking(Long bookingId, String teacherEmail) {
+        logger.info("Teacher {} confirming booking {}", teacherEmail, bookingId);
+
+        User teacherUser = userRepository.findByEmail(teacherEmail)
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
+        TeacherProfile teacher = teacherProfileRepository.findByUser(teacherUser)
+                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (!booking.getTeacher().getId().equals(teacher.getId())) {
+            throw new RuntimeException("Unauthorized to confirm this booking");
+        }
+
+        if (!"PENDING".equalsIgnoreCase(booking.getStatus())) {
+            throw new RuntimeException("Only pending bookings can be confirmed");
+        }
+
+        booking.setStatus("CONFIRMED");
+        bookingRepository.save(booking);
+        logger.info("Booking ID {} confirmed successfully by teacher {}", bookingId, teacherEmail);
     }
 
     // ✅ Mark as completed (Teacher)

@@ -20,19 +20,16 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ✅ Many bookings → One student
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Student student;
 
-    // ✅ Many bookings → One teacher
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private TeacherProfile teacher;
 
-    // ✅ Availability linked
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "availability_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -42,5 +39,5 @@ public class Booking {
     private LocalTime startTime;
     private LocalTime endTime;
 
-    private String status; // e.g. "PENDING", "PAID", "CANCELLED"
+    private String status; // PENDING, CONFIRMED, PAID, COMPLETED, CANCELLED
 }
