@@ -1,18 +1,25 @@
 package com.smarttutor.backend.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class BookingResponseDTO {
     private Long id;
     private String date;
     private String timeSlot;
     private String status;
 
-    private String teacherName;  // for student view
+    // Student view fields
+    private String teacherName;
     private String subject;
     private String skills;
 
-    private String studentName;  // for teacher view
+    // Teacher view fields
+    private String studentName;
     private String studentEmail;
+
+    // NEW: meeting link (visible to students and teachers)
+    private String meetingLink;
 }

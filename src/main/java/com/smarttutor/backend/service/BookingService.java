@@ -23,7 +23,7 @@ public class BookingService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final AvailabilityRepository availabilityRepository;
 
-    // ✅ Create a new booking (Student)
+    // Create a new booking (Student)
     @Transactional
     public Booking createBooking(String studentEmail, Long teacherId, Long availabilityId) {
         logger.info("Creating booking for student: {}, teacherId: {}, availabilityId: {}", studentEmail, teacherId, availabilityId);
@@ -61,13 +61,13 @@ public class BookingService {
         return savedBooking;
     }
 
-    // ✅ Get all bookings by Student (using studentId)
+    // Get all bookings by Student (using studentId)
     public List<BookingResponseDTO> getBookingsByStudent(Long studentId) {
         logger.debug("Fetching bookings for studentId: {}", studentId);
         return bookingRepository.findByStudent_Id(studentId).stream().map(this::mapToStudentDTO).toList();
     }
 
-    // ✅ Get all bookings by Student (using userId)
+    // Get all bookings by Student (using userId)
     public List<BookingResponseDTO> getBookingsByStudentUserId(Long userId) {
         logger.debug("Fetching bookings for student userId: {}", userId);
         Student student = studentRepository.findByUserId(userId)
@@ -75,13 +75,13 @@ public class BookingService {
         return bookingRepository.findByStudent_Id(student.getId()).stream().map(this::mapToStudentDTO).toList();
     }
 
-    // ✅ Get all bookings by Teacher (using teacherId)
+    // Get all bookings by Teacher (using teacherId)
     public List<BookingResponseDTO> getBookingsByTeacher(Long teacherId) {
         logger.debug("Fetching bookings for teacherId: {}", teacherId);
         return bookingRepository.findByTeacher_Id(teacherId).stream().map(this::mapToTeacherDTO).toList();
     }
 
-    // ✅ Get all bookings by Teacher (using userId)
+    // Get all bookings by Teacher (using userId)
     public List<BookingResponseDTO> getBookingsByTeacherUserId(Long userId) {
         logger.debug("Fetching bookings for teacher userId: {}", userId);
 
@@ -91,38 +91,43 @@ public class BookingService {
         return bookingRepository.findByTeacher_Id(teacher.getId()).stream().map(this::mapToTeacherDTO).toList();
     }
 
-    // ✅ Helper – map booking for Student view
+    // Helper – map booking for Student view
     private BookingResponseDTO mapToStudentDTO(Booking b) {
         BookingResponseDTO dto = new BookingResponseDTO();
         dto.setId(b.getId());
         dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-        dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+        dto.setTimeSlot((b.getStartTime() != null ? b.getStartTime().toString() : "") + " - " + (b.getEndTime() != null ? b.getEndTime().toString() : ""));
         dto.setStatus(b.getStatus());
+        dto.setMeetingLink(b.getMeetingLink()); // NEW
 
         if (b.getTeacher() != null) {
-            dto.setTeacherName(b.getTeacher().getUser().getName());
+            // Force-load user safely (avoid NPE)
+            if (b.getTeacher().getUser() != null) {
+                dto.setTeacherName(b.getTeacher().getUser().getName());
+            }
             dto.setSubject(b.getTeacher().getSubject());
             dto.setSkills(b.getTeacher().getSkills());
         }
         return dto;
     }
 
-    // ✅ Helper – map booking for Teacher view
+    // Helper – map booking for Teacher view
     private BookingResponseDTO mapToTeacherDTO(Booking b) {
         BookingResponseDTO dto = new BookingResponseDTO();
         dto.setId(b.getId());
         dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-        dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+        dto.setTimeSlot((b.getStartTime() != null ? b.getStartTime().toString() : "") + " - " + (b.getEndTime() != null ? b.getEndTime().toString() : ""));
         dto.setStatus(b.getStatus());
+        dto.setMeetingLink(b.getMeetingLink()); // NEW
 
-        if (b.getStudent() != null) {
+        if (b.getStudent() != null && b.getStudent().getUser() != null) {
             dto.setStudentName(b.getStudent().getUser().getName());
             dto.setStudentEmail(b.getStudent().getUser().getEmail());
         }
         return dto;
     }
 
-    // ✅ Cancel booking (Student)
+    // Cancel booking (Student)
     @Transactional
     public void cancelBooking(Long bookingId, String email) {
         logger.info("Student {} attempting to cancel booking ID {}", email, bookingId);
@@ -150,7 +155,7 @@ public class BookingService {
         logger.info("Booking ID {} cancelled successfully by student {}", bookingId, email);
     }
 
-    // ✅ Cancel booking (Teacher)
+    // Cancel booking (Teacher)
     @Transactional
     public void cancelBookingByTeacher(Long bookingId, String teacherEmail) {
         logger.info("Teacher {} attempting to cancel booking ID {}", teacherEmail, bookingId);
@@ -180,7 +185,7 @@ public class BookingService {
         bookingRepository.save(booking);
     }
 
-    // ✅ Confirm booking (Teacher)
+    // Confirm booking (Teacher)
     @Transactional
     public void confirmBooking(Long bookingId, String teacherEmail) {
         logger.info("Teacher {} confirming booking {}", teacherEmail, bookingId);
@@ -207,7 +212,7 @@ public class BookingService {
         logger.info("Booking ID {} confirmed successfully by teacher {}", bookingId, teacherEmail);
     }
 
-    // ✅ Mark as completed (Teacher)
+    // Mark as completed (Teacher)
     @Transactional
     public void markAsCompleted(Long bookingId, String teacherEmail) {
         logger.info("Teacher {} marking booking {} as completed", teacherEmail, bookingId);
@@ -233,5 +238,29 @@ public class BookingService {
         bookingRepository.save(booking);
 
         logger.info("Booking ID {} marked as COMPLETED by teacher {}", bookingId, teacherEmail);
+    }
+
+    // NEW: update meeting link (teacher sets/edits meeting URL)
+    @Transactional
+    public Booking updateMeetingLink(Long bookingId, String teacherEmail, String meetingLink) {
+        logger.info("Teacher {} updating meeting link for booking {}", teacherEmail, bookingId);
+
+        User teacherUser = userRepository.findByEmail(teacherEmail)
+                .orElseThrow(() -> new RuntimeException("Teacher user not found"));
+
+        TeacherProfile teacher = teacherProfileRepository.findByUser(teacherUser)
+                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (!booking.getTeacher().getId().equals(teacher.getId())) {
+            throw new RuntimeException("Unauthorized to update meeting link for this booking");
+        }
+
+        booking.setMeetingLink(meetingLink);
+        Booking saved = bookingRepository.save(booking);
+        logger.info("Meeting link updated for booking {} by teacher {}", bookingId, teacherEmail);
+        return saved;
     }
 }

@@ -40,4 +40,8 @@ public class Booking {
     private LocalTime endTime;
 
     private String status; // PENDING, CONFIRMED, PAID, COMPLETED, CANCELLED
+
+    // NEW: Meeting link for the scheduled session (nullable)
+    @Column(name = "meeting_link", length = 500)
+    private String meetingLink;
 }

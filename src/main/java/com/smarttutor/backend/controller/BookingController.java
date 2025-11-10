@@ -21,96 +21,60 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    // ✅ Create booking (Student)
     @PostMapping
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<Booking> createBooking(
-            @RequestBody BookingRequest request,
-            Authentication authentication) {
+    public ResponseEntity<Booking> createBooking(@RequestBody BookingRequest request, Authentication authentication) {
         String studentEmail = authentication.getName();
-        Booking booking = bookingService.createBooking(
-                studentEmail,
-                request.getTeacherId(),
-                request.getAvailabilityId()
-        );
+        Booking booking = bookingService.createBooking(studentEmail, request.getTeacherId(), request.getAvailabilityId());
         return ResponseEntity.ok(booking);
     }
 
-    // ✅ Get bookings for Student
     @GetMapping("/student/{userId}")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<List<BookingResponseDTO>> getBookingsByStudentUserId(@PathVariable Long userId) {
         return ResponseEntity.ok(bookingService.getBookingsByStudentUserId(userId));
     }
 
-    // ✅ Get bookings for Teacher
     @GetMapping("/teacher/{userId}")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<List<BookingResponseDTO>> getBookingsByTeacherUserId(@PathVariable Long userId) {
         return ResponseEntity.ok(bookingService.getBookingsByTeacherUserId(userId));
     }
 
-    // ✅ Cancel Booking (Student)
     @DeleteMapping("/{bookingId}")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<?> cancelBooking(
-            @PathVariable Long bookingId,
-            Authentication authentication) {
-        try {
-            bookingService.cancelBooking(bookingId, authentication.getName());
-            return ResponseEntity.ok(Map.of("message", "Booking cancelled successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<?> cancelBooking(@PathVariable Long bookingId, Authentication authentication) {
+        bookingService.cancelBooking(bookingId, authentication.getName());
+        return ResponseEntity.ok(Map.of("message", "Booking cancelled successfully"));
     }
 
-    // ✅ Cancel Booking (Teacher)
     @DeleteMapping("/teacher/cancel/{bookingId}")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<?> cancelBookingByTeacher(
-            @PathVariable Long bookingId,
-            Authentication authentication) {
-        try {
-            bookingService.cancelBookingByTeacher(bookingId, authentication.getName());
-            return ResponseEntity.ok(Map.of("message", "Booking cancelled successfully by teacher"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<?> cancelBookingByTeacher(@PathVariable Long bookingId, Authentication authentication) {
+        bookingService.cancelBookingByTeacher(bookingId, authentication.getName());
+        return ResponseEntity.ok(Map.of("message", "Booking cancelled successfully by teacher"));
     }
 
-    // ✅ Confirm Booking (Teacher)
     @PutMapping("/{bookingId}/confirm")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<?> confirmBooking(
-            @PathVariable Long bookingId,
-            Authentication authentication) {
-        try {
-            bookingService.confirmBooking(bookingId, authentication.getName());
-            return ResponseEntity.ok(Map.of(
-                    "message", "Booking confirmed successfully",
-                    "bookingId", bookingId,
-                    "status", "CONFIRMED"
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<?> confirmBooking(@PathVariable Long bookingId, Authentication authentication) {
+        bookingService.confirmBooking(bookingId, authentication.getName());
+        return ResponseEntity.ok(Map.of("message", "Booking confirmed successfully", "bookingId", bookingId, "status", "CONFIRMED"));
     }
 
-    // ✅ Mark Booking as Completed (Teacher)
     @PutMapping("/{bookingId}/complete")
     @PreAuthorize("hasRole('TEACHER')")
-    public ResponseEntity<?> markBookingAsCompleted(
-            @PathVariable Long bookingId,
-            Authentication authentication) {
-        try {
-            bookingService.markAsCompleted(bookingId, authentication.getName());
-            return ResponseEntity.ok(Map.of(
-                    "message", "Booking marked as completed successfully",
-                    "bookingId", bookingId,
-                    "status", "COMPLETED"
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<?> markBookingAsCompleted(@PathVariable Long bookingId, Authentication authentication) {
+        bookingService.markAsCompleted(bookingId, authentication.getName());
+        return ResponseEntity.ok(Map.of("message", "Booking marked as completed successfully", "bookingId", bookingId, "status", "COMPLETED"));
+    }
+
+    // Update meeting link (Teacher)
+    @PutMapping("/{bookingId}/meeting-link")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<?> updateMeetingLink(@PathVariable Long bookingId, @RequestBody Map<String, String> body, Authentication authentication) {
+        String meetingLink = body.get("meetingLink");
+        Booking updated = bookingService.updateMeetingLink(bookingId, authentication.getName(), meetingLink);
+        return ResponseEntity.ok(Map.of("message", "Meeting link updated successfully", "bookingId", bookingId, "meetingLink", updated.getMeetingLink()));
     }
 }
