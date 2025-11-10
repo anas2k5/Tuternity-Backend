@@ -31,7 +31,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         return path.startsWith("/api/auth/login") ||
-                path.startsWith("/api/auth/register");
+                path.startsWith("/api/auth/register") ||
+                path.startsWith("/api/stripe/webhook") ||   // ✅ Stripe webhook bypass
+                "OPTIONS".equalsIgnoreCase(request.getMethod()); // ✅ skip preflight requests
     }
 
     @Override
@@ -42,6 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
 
+        // If no Bearer token found → continue filter chain
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -54,6 +57,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             username = jwtUtil.extractUsername(jwt);
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
             System.out.println("❌ JWT expired: " + e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("JWT expired");
+            return;
+        } catch (Exception e) {
+            System.out.println("❌ JWT parsing error: " + e.getMessage());
             filterChain.doFilter(request, response);
             return;
         }
@@ -63,10 +71,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (jwtUtil.validateToken(jwt, userDetails.getUsername())) {
                 String role = jwtUtil.extractRole(jwt);
-                SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role);
+
+                // ✅ Strip "ROLE_" prefix for Spring consistency
+                if (role != null && role.startsWith("ROLE_")) {
+                    role = role.substring(5);
+                }
+
+                SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
 
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, null, List.of(authority));
+
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }

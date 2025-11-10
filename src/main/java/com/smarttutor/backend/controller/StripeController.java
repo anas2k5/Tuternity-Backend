@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/stripe")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"}, allowCredentials = "true")
 public class StripeController {
 
     private final PaymentRepository paymentRepository;
@@ -46,7 +46,7 @@ public class StripeController {
                 }
             }
 
-            double amount = booking.getTeacher().getHourlyRate() * 100; // convert to paise/cents
+            double amount = booking.getTeacher().getHourlyRate() * 100; // INR → paise
 
             SessionCreateParams params = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.PAYMENT)
@@ -73,26 +73,22 @@ public class StripeController {
 
             Session session = Session.create(params);
 
-            // ✅ Ensure createdAt is set safely if it's a new payment
             Payment payment = paymentRepository.findByBookingId(bookingId)
-                    .orElseGet(() -> {
-                        Payment newPayment = Payment.builder()
-                                .booking(booking)
-                                .amount(booking.getTeacher().getHourlyRate())
-                                .status("PENDING")
-                                .transactionId(session.getId())
-                                .createdAt(LocalDateTime.now()) // ✅ ensure date is set
-                                .build();
-                        return newPayment;
-                    });
+                    .orElseGet(() -> Payment.builder()
+                            .booking(booking)
+                            .amount(booking.getTeacher().getHourlyRate())
+                            .status("PENDING")
+                            .transactionId(session.getId())
+                            .createdAt(LocalDateTime.now())
+                            .build()
+                    );
 
             paymentRepository.save(payment);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("sessionId", session.getId());
-            response.put("url", session.getUrl());
-            return ResponseEntity.ok(response);
-
+            return ResponseEntity.ok(Map.of(
+                    "sessionId", session.getId(),
+                    "url", session.getUrl()
+            ));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -112,7 +108,7 @@ public class StripeController {
             if (!"SUCCESS".equalsIgnoreCase(payment.getStatus())) {
                 payment.setStatus("SUCCESS");
                 if (payment.getCreatedAt() == null) {
-                    payment.setCreatedAt(LocalDateTime.now()); // ✅ ensure timestamp if missing
+                    payment.setCreatedAt(LocalDateTime.now());
                 }
                 paymentRepository.save(payment);
 
@@ -120,13 +116,12 @@ public class StripeController {
                 bookingRepository.save(booking);
             }
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Payment verified successfully");
-            response.put("bookingId", bookingId);
-            response.put("paymentStatus", payment.getStatus());
-            response.put("bookingStatus", booking.getStatus());
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Payment verified successfully",
+                    "bookingId", bookingId,
+                    "paymentStatus", payment.getStatus(),
+                    "bookingStatus", booking.getStatus()
+            ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -136,12 +131,10 @@ public class StripeController {
     @GetMapping("/cancel/{bookingId}")
     public ResponseEntity<?> cancelPayment(@PathVariable Long bookingId) {
         try {
-            Optional<Payment> paymentOpt = paymentRepository.findByBookingId(bookingId);
-            if (paymentOpt.isPresent()) {
-                Payment payment = paymentOpt.get();
-                payment.setStatus("FAILED");
-                paymentRepository.save(payment);
-            }
+            paymentRepository.findByBookingId(bookingId).ifPresent(p -> {
+                p.setStatus("FAILED");
+                paymentRepository.save(p);
+            });
 
             Booking booking = bookingRepository.findById(bookingId)
                     .orElseThrow(() -> new RuntimeException("Booking not found"));
@@ -157,31 +150,25 @@ public class StripeController {
         }
     }
 
-    // ✅ Get all payments for a specific teacher (Dashboard)
+    // ✅ Get all payments for a teacher (Dashboard)
     @GetMapping("/payments/teacher/{teacherId}")
     public ResponseEntity<?> getPaymentsByTeacher(@PathVariable Long teacherId) {
         try {
             List<Payment> payments = paymentRepository.findAll().stream()
-                    .filter(p -> {
-                        if (p.getBooking() == null || p.getBooking().getTeacher() == null) return false;
-
-                        Long profileId = p.getBooking().getTeacher().getId();
-                        Long userId = p.getBooking().getTeacher().getUser() != null
-                                ? p.getBooking().getTeacher().getUser().getId()
-                                : null;
-
-                        // ✅ Match both teacherProfile.id or teacher.user.id
-                        return teacherId.equals(profileId) || teacherId.equals(userId);
-                    })
+                    .filter(p -> p.getBooking() != null &&
+                            p.getBooking().getTeacher() != null &&
+                            (teacherId.equals(p.getBooking().getTeacher().getId()) ||
+                                    (p.getBooking().getTeacher().getUser() != null &&
+                                            teacherId.equals(p.getBooking().getTeacher().getUser().getId()))))
                     .sorted(Comparator.comparing(Payment::getCreatedAt,
-                            Comparator.nullsLast(Comparator.reverseOrder()))) // ✅ sort newest first, ignore nulls
+                            Comparator.nullsLast(Comparator.reverseOrder())))
                     .limit(10)
                     .collect(Collectors.toList());
 
-            // ✅ Force-load nested data for serialization
             payments.forEach(p -> {
-                if (p.getBooking() != null && p.getBooking().getStudent() != null
-                        && p.getBooking().getStudent().getUser() != null) {
+                if (p.getBooking() != null &&
+                        p.getBooking().getStudent() != null &&
+                        p.getBooking().getStudent().getUser() != null) {
                     p.getBooking().getStudent().getUser().getName();
                     p.getBooking().getStudent().getUser().getEmail();
                 }
@@ -194,14 +181,14 @@ public class StripeController {
         }
     }
 
-    // ✅ Get all payments for a specific student (for future use)
+    // ✅ Get all payments for a student (optional)
     @GetMapping("/payments/student/{studentId}")
     public ResponseEntity<?> getPaymentsByStudent(@PathVariable Long studentId) {
         try {
             List<Payment> payments = paymentRepository.findAll().stream()
-                    .filter(p -> p.getBooking() != null
-                            && p.getBooking().getStudent() != null
-                            && studentId.equals(p.getBooking().getStudent().getId()))
+                    .filter(p -> p.getBooking() != null &&
+                            p.getBooking().getStudent() != null &&
+                            studentId.equals(p.getBooking().getStudent().getId()))
                     .collect(Collectors.toList());
 
             return ResponseEntity.ok(payments);

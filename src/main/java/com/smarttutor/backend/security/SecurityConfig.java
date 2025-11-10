@@ -34,29 +34,27 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public endpoints (open access)
+                        // ✅ Public endpoints
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/stripe/**").permitAll()
                         .requestMatchers("/api/payments/**").permitAll()
 
-                        // ✅ Allow everyone to view teachers
+                        // ✅ Allow viewing teachers publicly
                         .requestMatchers(HttpMethod.GET, "/api/teachers", "/api/teachers/**").permitAll()
 
-                        // ✅ Student endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/bookings").hasRole("STUDENT")
-                        .requestMatchers(HttpMethod.GET, "/api/bookings/student/**").hasRole("STUDENT")
-                        .requestMatchers(HttpMethod.DELETE, "/api/bookings/**").hasAnyRole("STUDENT", "TEACHER")
+                        // ✅ Booking endpoints (controlled via @PreAuthorize in controller)
+                        .requestMatchers("/api/bookings/**").authenticated()
 
-                        // ✅ Teacher endpoints
+                        // ✅ Teacher-only sections
                         .requestMatchers("/api/teachers/me", "/api/teachers/me/**").hasRole("TEACHER")
                         .requestMatchers("/api/teachers/profile", "/api/teachers/profile/**").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.PUT, "/api/teacher/**").hasRole("TEACHER")
                         .requestMatchers(HttpMethod.POST, "/api/teacher/**").hasRole("TEACHER")
 
-                        // ✅ Admin endpoints (future)
+                        // ✅ Admin endpoints (future use)
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // ✅ All others require authentication
+                        // ✅ All others need authentication
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -67,7 +65,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        // ✅ Allow all origins during local development (Stripe + Frontend)
+        config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
