@@ -17,7 +17,8 @@ import java.util.function.Function;
 public class JwtUtil {
 
     private final Key SECRET_KEY;
-    private final long EXPIRATION_TIME;
+    private final long ACCESS_TOKEN_EXPIRATION;
+    private final long REFRESH_TOKEN_EXPIRATION;
 
     public JwtUtil(
             @Value("${jwt.secret}") String secret,
@@ -27,7 +28,8 @@ public class JwtUtil {
             throw new IllegalArgumentException("JWT secret must be at least 32 characters long");
         }
         this.SECRET_KEY = Keys.hmacShaKeyFor(secret.getBytes());
-        this.EXPIRATION_TIME = expirationTime;
+        this.ACCESS_TOKEN_EXPIRATION = expirationTime; // typically 1 hour
+        this.REFRESH_TOKEN_EXPIRATION = 604800000L;    // 7 days
     }
 
     public String extractUsername(String token) {
@@ -43,28 +45,43 @@ public class JwtUtil {
         return claimsResolver.apply(claims);
     }
 
+    // ✅ Access token
     public String generateToken(String username, String role) {
         Map<String, Object> claims = new HashMap<>();
         if (!role.startsWith("ROLE_")) {
             role = "ROLE_" + role;
         }
         claims.put("role", role);
-        return createToken(claims, username);
+        return createToken(claims, username, ACCESS_TOKEN_EXPIRATION);
     }
 
-    private String createToken(Map<String, Object> claims, String subject) {
+    // ✅ Refresh token
+    public String generateRefreshToken(String username, String role) {
+        Map<String, Object> claims = new HashMap<>();
+        if (!role.startsWith("ROLE_")) {
+            role = "ROLE_" + role;
+        }
+        claims.put("role", role);
+        return createToken(claims, username, REFRESH_TOKEN_EXPIRATION);
+    }
+
+    private String createToken(Map<String, Object> claims, String subject, long expiration) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(SECRET_KEY, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public boolean validateToken(String token, String username) {
-        final String extractedUsername = extractUsername(token);
-        return extractedUsername.equals(username) && !isTokenExpired(token);
+        try {
+            final String extractedUsername = extractUsername(token);
+            return extractedUsername.equals(username) && !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
