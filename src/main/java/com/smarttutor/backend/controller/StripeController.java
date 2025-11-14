@@ -19,7 +19,14 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/stripe")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173"}, allowCredentials = "true")
+@CrossOrigin(
+        origins = {
+                "https://tuternity-frontend.vercel.app",  // Production frontend
+                "http://localhost:3000",                 // Local React
+                "http://localhost:5173"                  // Vite (if used)
+        },
+        allowCredentials = "true"
+)
 public class StripeController {
 
     private final PaymentRepository paymentRepository;
@@ -48,10 +55,24 @@ public class StripeController {
 
             double amount = booking.getTeacher().getHourlyRate() * 100; // INR → paise
 
+            // ================================
+            // ⭐ PRODUCTION SUCCESS & CANCEL URL
+            // ================================
+            String successUrl = "https://tuternity-frontend.vercel.app/paymentSuccess?bookingId=" + bookingId;
+            String cancelUrl = "https://tuternity-frontend.vercel.app/paymentCancel?bookingId=" + bookingId;
+
+            // ================================
+            // ⭐ Local testing fallback
+            // ================================
+            if (System.getenv("RENDER") == null) {
+                successUrl = "http://localhost:3000/paymentSuccess?bookingId=" + bookingId;
+                cancelUrl = "http://localhost:3000/paymentCancel?bookingId=" + bookingId;
+            }
+
             SessionCreateParams params = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.PAYMENT)
-                    .setSuccessUrl("http://localhost:3000/paymentSuccess?bookingId=" + bookingId)
-                    .setCancelUrl("http://localhost:3000/paymentCancel?bookingId=" + bookingId)
+                    .setSuccessUrl(successUrl)
+                    .setCancelUrl(cancelUrl)
                     .addLineItem(
                             SessionCreateParams.LineItem.builder()
                                     .setQuantity(1L)
@@ -73,6 +94,7 @@ public class StripeController {
 
             Session session = Session.create(params);
 
+            // Save Payment
             Payment payment = paymentRepository.findByBookingId(bookingId)
                     .orElseGet(() -> Payment.builder()
                             .booking(booking)
@@ -150,7 +172,7 @@ public class StripeController {
         }
     }
 
-    // ✅ Get all payments for a teacher (Dashboard)
+    // ✅ Get payments for teacher
     @GetMapping("/payments/teacher/{teacherId}")
     public ResponseEntity<?> getPaymentsByTeacher(@PathVariable Long teacherId) {
         try {
@@ -165,15 +187,6 @@ public class StripeController {
                     .limit(10)
                     .collect(Collectors.toList());
 
-            payments.forEach(p -> {
-                if (p.getBooking() != null &&
-                        p.getBooking().getStudent() != null &&
-                        p.getBooking().getStudent().getUser() != null) {
-                    p.getBooking().getStudent().getUser().getName();
-                    p.getBooking().getStudent().getUser().getEmail();
-                }
-            });
-
             return ResponseEntity.ok(payments);
         } catch (Exception e) {
             e.printStackTrace();
@@ -181,7 +194,7 @@ public class StripeController {
         }
     }
 
-    // ✅ Get all payments for a student (optional)
+    // ✅ Get payments for student
     @GetMapping("/payments/student/{studentId}")
     public ResponseEntity<?> getPaymentsByStudent(@PathVariable Long studentId) {
         try {
