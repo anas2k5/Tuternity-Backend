@@ -23,244 +23,219 @@ public class BookingService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final AvailabilityRepository availabilityRepository;
 
-    // Create a new booking (Student)
+    // ----------------------------------------
+    // CREATE BOOKING
+    // ----------------------------------------
     @Transactional
     public Booking createBooking(String studentEmail, Long teacherId, Long availabilityId) {
-        logger.info("Creating booking for student: {}, teacherId: {}, availabilityId: {}", studentEmail, teacherId, availabilityId);
 
         User studentUser = userRepository.findByEmail(studentEmail)
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + studentEmail));
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + studentEmail));
 
         Student student = studentRepository.findByUserId(studentUser.getId())
-                .orElseThrow(() -> new RuntimeException("Student profile not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Student profile not found"));
 
         TeacherProfile teacher = teacherProfileRepository.findById(teacherId)
-                .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + teacherId));
+                .orElseThrow(() -> new IllegalArgumentException("Teacher not found"));
 
         Availability slot = availabilityRepository.findById(availabilityId)
-                .orElseThrow(() -> new RuntimeException("Slot not found with ID: " + availabilityId));
+                .orElseThrow(() -> new IllegalArgumentException("Slot not found"));
 
+        // Prevent double booking
         if (slot.isBooked() || bookingRepository.existsByAvailabilityId(availabilityId)) {
-            throw new RuntimeException("This slot has already been booked. Please choose another one.");
+            throw new IllegalStateException("This time slot has already been booked.");
         }
 
+        // Mark slot booked
         slot.setBooked(true);
         availabilityRepository.save(slot);
 
-        Booking booking = new Booking();
-        booking.setStudent(student);
-        booking.setTeacher(teacher);
-        booking.setAvailability(slot);
-        booking.setDate(slot.getDate());
-        booking.setStartTime(slot.getStartTime());
-        booking.setEndTime(slot.getEndTime());
-        booking.setStatus("PENDING");
+        Booking booking = Booking.builder()
+                .student(student)
+                .teacher(teacher)
+                .availability(slot)
+                .date(slot.getDate())
+                .startTime(slot.getStartTime())
+                .endTime(slot.getEndTime())
+                .status("PENDING")
+                .build();
 
-        Booking savedBooking = bookingRepository.save(booking);
-        logger.info("Booking successfully created with ID: {}", savedBooking.getId());
-        return savedBooking;
+        return bookingRepository.save(booking);
     }
 
-    // Get all bookings by Student (using studentId)
-    public List<BookingResponseDTO> getBookingsByStudent(Long studentId) {
-        logger.debug("Fetching bookings for studentId: {}", studentId);
-        return bookingRepository.findByStudent_Id(studentId).stream().map(this::mapToStudentDTO).toList();
-    }
-
-    // Get all bookings by Student (using userId)
+    // ----------------------------------------
+    // GET BOOKINGS FOR STUDENT (userId)
+    // ----------------------------------------
     public List<BookingResponseDTO> getBookingsByStudentUserId(Long userId) {
-        logger.debug("Fetching bookings for student userId: {}", userId);
         Student student = studentRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Student profile not found for userId: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("Student profile not found"));
         return bookingRepository.findByStudent_Id(student.getId()).stream().map(this::mapToStudentDTO).toList();
     }
 
-    // Get all bookings by Teacher (using teacherId)
-    public List<BookingResponseDTO> getBookingsByTeacher(Long teacherId) {
-        logger.debug("Fetching bookings for teacherId: {}", teacherId);
-        return bookingRepository.findByTeacher_Id(teacherId).stream().map(this::mapToTeacherDTO).toList();
-    }
-
-    // Get all bookings by Teacher (using userId)
+    // ----------------------------------------
+    // GET BOOKINGS FOR TEACHER (userId)
+    // ----------------------------------------
     public List<BookingResponseDTO> getBookingsByTeacherUserId(Long userId) {
-        logger.debug("Fetching bookings for teacher userId: {}", userId);
-
         TeacherProfile teacher = teacherProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found for userId: " + userId));
-
+                .orElseThrow(() -> new IllegalArgumentException("Teacher profile not found"));
         return bookingRepository.findByTeacher_Id(teacher.getId()).stream().map(this::mapToTeacherDTO).toList();
     }
 
-    // Helper – map booking for Student view
-    private BookingResponseDTO mapToStudentDTO(Booking b) {
-        BookingResponseDTO dto = new BookingResponseDTO();
-        dto.setId(b.getId());
-        dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-        dto.setTimeSlot((b.getStartTime() != null ? b.getStartTime().toString() : "") + " - " + (b.getEndTime() != null ? b.getEndTime().toString() : ""));
-        dto.setStatus(b.getStatus());
-        dto.setMeetingLink(b.getMeetingLink()); // NEW
-
-        if (b.getTeacher() != null) {
-            // Force-load user safely (avoid NPE)
-            if (b.getTeacher().getUser() != null) {
-                dto.setTeacherName(b.getTeacher().getUser().getName());
-            }
-            dto.setSubject(b.getTeacher().getSubject());
-            dto.setSkills(b.getTeacher().getSkills());
-        }
-        return dto;
-    }
-
-    // Helper – map booking for Teacher view
-    private BookingResponseDTO mapToTeacherDTO(Booking b) {
-        BookingResponseDTO dto = new BookingResponseDTO();
-        dto.setId(b.getId());
-        dto.setDate(b.getDate() != null ? b.getDate().toString() : "-");
-        dto.setTimeSlot((b.getStartTime() != null ? b.getStartTime().toString() : "") + " - " + (b.getEndTime() != null ? b.getEndTime().toString() : ""));
-        dto.setStatus(b.getStatus());
-        dto.setMeetingLink(b.getMeetingLink()); // NEW
-
-        if (b.getStudent() != null && b.getStudent().getUser() != null) {
-            dto.setStudentName(b.getStudent().getUser().getName());
-            dto.setStudentEmail(b.getStudent().getUser().getEmail());
-        }
-        return dto;
-    }
-
-    // Cancel booking (Student)
+    // ----------------------------------------
+    // CANCEL BY STUDENT
+    // ----------------------------------------
     @Transactional
     public void cancelBooking(Long bookingId, String email) {
-        logger.info("Student {} attempting to cancel booking ID {}", email, bookingId);
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
         if (!booking.getStudent().getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("Unauthorized to cancel this booking");
+            throw new SecurityException("Unauthorized cancel attempt.");
         }
 
         if ("PAID".equalsIgnoreCase(booking.getStatus())) {
-            throw new RuntimeException("Cannot cancel a paid booking");
+            throw new IllegalStateException("Paid booking cannot be canceled.");
         }
 
-        Availability slot = booking.getAvailability();
-        slot.setBooked(false);
-        availabilityRepository.save(slot);
+        booking.getAvailability().setBooked(false);
+        availabilityRepository.save(booking.getAvailability());
 
         booking.setStatus("CANCELLED");
         bookingRepository.save(booking);
-        logger.info("Booking ID {} cancelled successfully by student {}", bookingId, email);
     }
 
-    // Cancel booking (Teacher)
+    // ----------------------------------------
+    // CANCEL BY TEACHER
+    // ----------------------------------------
     @Transactional
     public void cancelBookingByTeacher(Long bookingId, String teacherEmail) {
-        logger.info("Teacher {} attempting to cancel booking ID {}", teacherEmail, bookingId);
 
-        User teacherUser = userRepository.findByEmail(teacherEmail)
-                .orElseThrow(() -> new RuntimeException("Teacher user not found"));
-
-        TeacherProfile teacher = teacherProfileRepository.findByUser(teacherUser)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+        TeacherProfile teacher = teacherProfileRepository.findByUser(
+                userRepository.findByEmail(teacherEmail)
+                        .orElseThrow(() -> new IllegalArgumentException("Teacher not found"))
+        ).orElseThrow(() -> new IllegalArgumentException("Teacher profile not found"));
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
         if (!booking.getTeacher().getId().equals(teacher.getId())) {
-            throw new RuntimeException("Unauthorized to cancel this booking");
+            throw new SecurityException("Unauthorized.");
         }
 
         if ("PAID".equalsIgnoreCase(booking.getStatus())) {
-            throw new RuntimeException("Cannot cancel a paid booking");
+            throw new IllegalStateException("Paid booking cannot be canceled.");
         }
 
-        Availability slot = booking.getAvailability();
-        slot.setBooked(false);
-        availabilityRepository.save(slot);
+        booking.getAvailability().setBooked(false);
+        availabilityRepository.save(booking.getAvailability());
 
         booking.setStatus("CANCELLED_BY_TEACHER");
         bookingRepository.save(booking);
     }
 
-    // Confirm booking (Teacher)
+    // ----------------------------------------
+    // CONFIRM
+    // ----------------------------------------
     @Transactional
     public void confirmBooking(Long bookingId, String teacherEmail) {
-        logger.info("Teacher {} confirming booking {}", teacherEmail, bookingId);
 
-        User teacherUser = userRepository.findByEmail(teacherEmail)
-                .orElseThrow(() -> new RuntimeException("Teacher not found"));
-
-        TeacherProfile teacher = teacherProfileRepository.findByUser(teacherUser)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+        TeacherProfile teacher = teacherProfileRepository.findByUser(
+                userRepository.findByEmail(teacherEmail)
+                        .orElseThrow(() -> new IllegalArgumentException("Teacher not found"))
+        ).orElseThrow(() -> new IllegalArgumentException("Profile not found"));
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
         if (!booking.getTeacher().getId().equals(teacher.getId())) {
-            throw new RuntimeException("Unauthorized to confirm this booking");
+            throw new SecurityException("Unauthorized.");
         }
 
         if (!"PENDING".equalsIgnoreCase(booking.getStatus())) {
-            throw new RuntimeException("Only pending bookings can be confirmed");
+            throw new IllegalStateException("Only pending bookings can be confirmed.");
         }
 
         booking.setStatus("CONFIRMED");
         bookingRepository.save(booking);
-        logger.info("Booking ID {} confirmed successfully by teacher {}", bookingId, teacherEmail);
     }
 
-    // Mark as completed (Teacher)
+    // ----------------------------------------
+    // COMPLETE
+    // ----------------------------------------
     @Transactional
     public void markAsCompleted(Long bookingId, String teacherEmail) {
-        logger.info("Teacher {} marking booking {} as completed", teacherEmail, bookingId);
 
-        User teacherUser = userRepository.findByEmail(teacherEmail)
-                .orElseThrow(() -> new RuntimeException("Teacher not found"));
-
-        TeacherProfile teacher = teacherProfileRepository.findByUser(teacherUser)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+        TeacherProfile teacher = teacherProfileRepository.findByUser(
+                userRepository.findByEmail(teacherEmail)
+                        .orElseThrow(() -> new IllegalArgumentException("Teacher not found"))
+        ).orElseThrow(() -> new IllegalArgumentException("Profile not found"));
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
         if (!booking.getTeacher().getId().equals(teacher.getId())) {
-            throw new RuntimeException("Unauthorized action");
+            throw new SecurityException("Unauthorized");
         }
 
         if (!"PAID".equalsIgnoreCase(booking.getStatus())) {
-            throw new RuntimeException("Only paid bookings can be marked as completed");
+            throw new IllegalStateException("Only paid bookings can be completed.");
         }
 
         booking.setStatus("COMPLETED");
         bookingRepository.save(booking);
-
-        logger.info("Booking ID {} marked as COMPLETED by teacher {}", bookingId, teacherEmail);
     }
 
-    // NEW: update meeting link (teacher sets/edits meeting URL)
+    // ----------------------------------------
+    // UPDATE MEETING LINK
+    // ----------------------------------------
     @Transactional
     public Booking updateMeetingLink(Long bookingId, String teacherEmail, String meetingLink) {
-        logger.info("Teacher {} updating meeting link for booking {}", teacherEmail, bookingId);
 
-        User teacherUser = userRepository.findByEmail(teacherEmail)
-                .orElseThrow(() -> new RuntimeException("Teacher user not found"));
-
-        TeacherProfile teacher = teacherProfileRepository.findByUser(teacherUser)
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+        TeacherProfile teacher = teacherProfileRepository.findByUser(
+                userRepository.findByEmail(teacherEmail)
+                        .orElseThrow(() -> new IllegalArgumentException("Teacher not found"))
+        ).orElseThrow(() -> new IllegalArgumentException("Profile not found"));
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
 
         if (!booking.getTeacher().getId().equals(teacher.getId())) {
-            throw new RuntimeException("Unauthorized to update meeting link for this booking");
+            throw new SecurityException("Unauthorized.");
         }
 
         booking.setMeetingLink(meetingLink);
-        Booking saved = bookingRepository.save(booking);
-        logger.info("Meeting link updated for booking {} by teacher {}", bookingId, teacherEmail);
-        return saved;
+        return bookingRepository.save(booking);
+    }
+
+    // -----------------------------
+    // MAPPERS
+    // -----------------------------
+    private BookingResponseDTO mapToStudentDTO(Booking b) {
+        BookingResponseDTO dto = new BookingResponseDTO();
+        dto.setId(b.getId());
+        dto.setDate(b.getDate().toString());
+        dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+        dto.setStatus(b.getStatus());
+        dto.setMeetingLink(b.getMeetingLink());
+        dto.setTeacherName(b.getTeacher().getUser().getName());
+        dto.setSubject(b.getTeacher().getSubject());
+        dto.setSkills(b.getTeacher().getSkills());
+        return dto;
+    }
+
+    private BookingResponseDTO mapToTeacherDTO(Booking b) {
+        BookingResponseDTO dto = new BookingResponseDTO();
+        dto.setId(b.getId());
+        dto.setDate(b.getDate().toString());
+        dto.setTimeSlot(b.getStartTime() + " - " + b.getEndTime());
+        dto.setStatus(b.getStatus());
+        dto.setMeetingLink(b.getMeetingLink());
+        dto.setStudentName(b.getStudent().getUser().getName());
+        dto.setStudentEmail(b.getStudent().getUser().getEmail());
+        return dto;
     }
 }

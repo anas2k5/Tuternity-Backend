@@ -6,6 +6,7 @@ import com.smarttutor.backend.model.User;
 import com.smarttutor.backend.repository.AvailabilityRepository;
 import com.smarttutor.backend.repository.TeacherProfileRepository;
 import com.smarttutor.backend.repository.UserRepository;
+import com.smarttutor.backend.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class AvailabilityService {
     private final AvailabilityRepository availabilityRepo;
     private final TeacherProfileRepository teacherRepo;
     private final UserRepository userRepo;
+    private final BookingRepository bookingRepository; // <-- injected
 
     /**
      * ✅ Add a new availability slot for the logged-in teacher
@@ -28,28 +30,28 @@ public class AvailabilityService {
     @Transactional
     public Availability addAvailability(String email, Availability req) {
         User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
 
         TeacherProfile teacher = teacherRepo.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found for user: " + email));
+                .orElseThrow(() -> new IllegalArgumentException("Teacher profile not found for user: " + email));
 
         LocalDate date = req.getDate();
         LocalTime startTime = req.getStartTime();
         LocalTime endTime = req.getEndTime();
 
         if (date == null || startTime == null || endTime == null) {
-            throw new RuntimeException("Date, start time, and end time are required.");
+            throw new IllegalArgumentException("Date, start time, and end time are required.");
         }
 
-        if (endTime.isBefore(startTime)) {
-            throw new RuntimeException("End time must be after start time.");
+        if (!endTime.isAfter(startTime)) {
+            throw new IllegalArgumentException("End time must be after start time.");
         }
 
-        // ✅ Prevent duplicate slots on same day & time
+        // Prevent duplicate slots on same day & time
         boolean exists = availabilityRepo.existsByTeacherAndDateAndStartTimeAndEndTime(
                 teacher, date, startTime, endTime);
         if (exists) {
-            throw new RuntimeException("Slot already exists for this time range.");
+            throw new IllegalStateException("Slot already exists for this time range.");
         }
 
         Availability slot = Availability.builder()
@@ -68,12 +70,15 @@ public class AvailabilityService {
      */
     public List<Availability> getAvailabilitiesByTeacherEmail(String email) {
         User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
 
         TeacherProfile teacher = teacherRepo.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Teacher profile not found"));
 
-        return availabilityRepo.findByTeacherAndBookedFalse(teacher);
+        return availabilityRepo.findByTeacher_User_Id(teacher.getUser().getId())
+                .stream()
+                .filter(a -> !a.isBooked()) // keep semantics consistent
+                .toList();
     }
 
     /**
@@ -81,7 +86,7 @@ public class AvailabilityService {
      */
     public List<Availability> getAvailabilitiesByTeacherId(Long teacherId) {
         TeacherProfile teacher = teacherRepo.findById(teacherId)
-                .orElseThrow(() -> new RuntimeException("Teacher not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Teacher not found"));
 
         return availabilityRepo.findByTeacherAndBookedFalse(teacher);
     }
@@ -92,20 +97,22 @@ public class AvailabilityService {
     @Transactional
     public void deleteAvailability(String email, Long id) {
         User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
 
         TeacherProfile teacher = teacherRepo.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Teacher profile not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Teacher profile not found"));
 
         Availability slot = availabilityRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Slot not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Slot not found"));
 
         if (!slot.getTeacher().getId().equals(teacher.getId())) {
-            throw new RuntimeException("Unauthorized to delete this slot.");
+            throw new SecurityException("Unauthorized to delete this slot.");
         }
 
-        if (slot.isBooked()) {
-            throw new RuntimeException("Cannot delete a booked slot.");
+        // FINAL source-of-truth: check bookings table for references
+        if (bookingRepository.existsByAvailabilityId(id) || slot.isBooked()) {
+            // keep a clear message so front-end can show user-friendly toast
+            throw new IllegalStateException("Cannot delete a slot that has an existing booking.");
         }
 
         availabilityRepo.delete(slot);

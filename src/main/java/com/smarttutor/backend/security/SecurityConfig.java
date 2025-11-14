@@ -29,43 +29,57 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public endpoints
+
+                        // -------------------------
+                        // PUBLIC ENDPOINTS
+                        // -------------------------
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/stripe/**").permitAll()
                         .requestMatchers("/api/payments/**").permitAll()
+                        .requestMatchers("/api/stripe/**").permitAll()
 
-                        // ✅ Allow viewing teachers publicly
-                        .requestMatchers(HttpMethod.GET, "/api/teachers", "/api/teachers/**").permitAll()
+                        // Public teacher profiles & browsing
+                        .requestMatchers(HttpMethod.GET, "/api/teachers/**").permitAll()
 
-                        // ✅ Booking endpoints (controlled via @PreAuthorize in controller)
+                        // **THIS WAS THE MISSING FIX**
+                        .requestMatchers(HttpMethod.GET, "/api/availability/teacher/**").permitAll()
+
+                        // -------------------------
+                        // AUTHENTICATED ROUTES
+                        // -------------------------
                         .requestMatchers("/api/bookings/**").authenticated()
 
-                        // ✅ Teacher-only sections
+                        // Teacher-only routes
                         .requestMatchers("/api/teachers/me", "/api/teachers/me/**").hasRole("TEACHER")
                         .requestMatchers("/api/teachers/profile", "/api/teachers/profile/**").hasRole("TEACHER")
-                        .requestMatchers(HttpMethod.PUT, "/api/teacher/**").hasRole("TEACHER")
-                        .requestMatchers(HttpMethod.POST, "/api/teacher/**").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/availability/**").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/availability/**").hasRole("TEACHER")
 
-                        // ✅ Admin endpoints (future use)
+                        // Admin future routes
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // ✅ All others need authentication
+                        // Everything else requires login
                         .anyRequest().authenticated()
                 )
+
+                // JWT filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // ✅ Allow all origins during local development (Stripe + Frontend)
+
         config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
@@ -73,13 +87,18 @@ public class SecurityConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
+
         return source;
     }
+
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
