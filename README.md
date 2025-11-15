@@ -1,82 +1,61 @@
-# 📘 TuterNity Backend
+TuterNity Backend
 
-A complete backend service for the **TuterNity Online Tutoring Platform**, built using **Spring Boot**, **JWT Authentication**, **PostgreSQL (NeonDB)**, **Hibernate**, and **Stripe** for secure online payments.
+A complete backend service for the TuterNity Online Tutoring Platform, built with Spring Boot, JWT Authentication, PostgreSQL (NeonDB), Hibernate, and Stripe for secure online payments.
 
-This backend manages authentication, teacher–student interactions, scheduling, bookings, payments, email notifications, and more.
+This backend powers authentication, teacher–student interactions, scheduling, bookings, payments, and notifications.
 
----
+Features
 
-## 🚀 Features
+JWT Authentication & Role-Based Access
 
-- **JWT Authentication** & Role-Based Access  
-- **Teacher & Student Management**  
-- **Booking System** (create, update, cancel)  
-- **Stripe Payment Integration** (Checkout session)  
-- **Email Notifications**  
-- **Secure REST API** following clean layered architecture  
-- **PostgreSQL (NeonDB)** for cloud-hosted database  
-- **Docker Support** for containerized deployment  
-- **Render Deployment Ready**
+Teacher & Student Management
 
----
+Booking System (create, update, cancel)
 
-## 🛠️ Technologies Used
+Stripe Payment Integration (Checkout session + success/cancel status)
 
-### **Backend**
-- Java 17  
-- Spring Boot 3  
-- Spring Security + JWT  
-- Spring Data JPA (Hibernate)  
-- PostgreSQL (NeonDB)  
-- Stripe Payments API  
-- Maven  
+Email Notifications (booking confirmations & updates)
 
-### **Tools & Libraries**
-- Lombok  
-- ModelMapper  
-- Docker  
-- Render Cloud Deployment  
+Secure REST API with layered architecture
 
----
+PostgreSQL (NeonDB) as cloud-hosted DB
 
-## 📦 Project Structure
+Docker support for containerization
+
+Render deployment ready
+
+Project Structure
 tuternity-backend/
-│
-├── src/
-│ ├── main/
-│ │ ├── java/com/smarttutor/backend/
-│ │ │ ├── controller/ # REST Controllers
-│ │ │ ├── model/ # Entities
-│ │ │ ├── repository/ # JPA Repositories
-│ │ │ ├── service/ # Business Logic
-│ │ │ ├── security/ # JWT Security Config
-│ │ │ ├── util/ # Helpers
-│ │ │ └── config/ # App Configurations
-│ │ └── resources/
-│ │ ├── application.properties
-│ │ └── static/
-│ └── test/ # Unit Tests
+│── src/
+│   ├── main/
+│   │   ├── java/com/smarttutor/backend/
+│   │   │   ├── controller/      # REST Controllers
+│   │   │   ├── model/           # Entities
+│   │   │   ├── repository/      # JPA Repositories
+│   │   │   ├── service/         # Business Logic
+│   │   │   ├── security/        # JWT Security Config
+│   │   │   ├── util/            # Helper Classes
+│   │   │   └── config/          # App Configurations
+│   │   ├── resources/
+│   │   │   ├── application.properties
+│   │   │   └── static/
+│   ├── test/                    # Unit Tests
 │
 ├── Dockerfile
 ├── run.sh
 ├── pom.xml
 └── README.md
 
-
----
-
-## ⚙️ Installation & Setup
-
-### **1️⃣ Clone the Repository**
-```bash
+Installation & Setup
+1. Clone the Repository
 git clone https://github.com/anas2k5/Tuternity-Backend.git
 cd Tuternity-Backend
 
-2️⃣ Configure PostgreSQL (NeonDB)
+2. Configure NeonDB (PostgreSQL)
 
-Create a new NeonDB project and get your connection URL.
+Create a new NeonDB project and copy your connection URL.
 
-3️⃣ Update application.properties
+3. Update application.properties
 # Database Configuration
 spring.datasource.url=jdbc:postgresql://your-neon-url
 spring.datasource.username=your_user
@@ -86,24 +65,30 @@ spring.datasource.password=your_password
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 
-# JWT Keys
-jwt.secret=your_secret_key
+# JWT
+jwt.secret=your_jwt_secret
 jwt.expiration=86400000
 
-# Stripe Key
+# Stripe
 stripe.api.key=your_stripe_secret_key
 
-4️⃣ Run the Application
+4. Run the Application
+Using Maven:
 mvn spring-boot:run
 
+Or run the built JAR:
+java -jar target/tuternity-backend.jar
 
-Server runs on ➜ http://localhost:8081
 
-🔌 API Endpoints (Sample)
+The server runs on:
+
+http://localhost:8081
+
+API Endpoints (Sample)
 Authentication
 Method	Endpoint	Description
 POST	/api/auth/register	Register user
-POST	/api/auth/login	Login & get JWT token
+POST	/api/auth/login	Login & get token
 Bookings
 Method	Endpoint	Description
 POST	/api/bookings	Create booking
@@ -114,25 +99,29 @@ Method	Endpoint	Description
 POST	/api/stripe/create-checkout-session/{bookingId}	Start payment
 GET	/api/stripe/success/{bookingId}	Verify payment
 GET	/api/stripe/cancel/{bookingId}	Cancel payment
-☁️ Deployment
-Render Deployment Includes
+Deployment
 
-Dockerfile
+The backend is deployed using Render with the following features:
 
-Auto-build on commit
+Dockerfile deployment
 
-Environment variables
+Auto-deploy on commit
 
-Free-tier auto sleep
+Environment variables included
 
-Backend Live URL:
-👉 https://tuternity-backend.onrender.com
+Free-tier autosleep
 
-🤝 Contributing
+Live Backend URL
 
-Contributions, issues, and feature requests are welcome.
+https://tuternity-backend.onrender.com
 
-📬 Contact
+Contributing
+
+Pull requests, issues, and feature requests are welcome.
+
+Contact
 
 Anas Syed
-GitHub: anas2k5
+GitHub: https://github.com/anas2k5
+
+Email: (add your email)
