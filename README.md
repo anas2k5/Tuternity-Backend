@@ -1,10 +1,9 @@
-🚀 TuterNity Backend
+📘 TuterNity Backend
 
-A complete backend service for the TuterNity Online Tutoring Platform, built with Spring Boot, JWT Authentication, PostgreSQL (NeonDB), Hibernate, and Stripe for secure online payments.
+A complete Online Tutoring Platform Backend built with Spring Boot, JWT Authentication, PostgreSQL (NeonDB), Hibernate, and Stripe for secure payments.
+This backend handles authentication, scheduling, bookings, payments, teacher–student workflows, and notifications.
 
-This backend powers authentication, teacher–student interactions, scheduling, bookings, payments, and notifications.
-
-✨ Features
+🚀 Features
 
 🔐 JWT Authentication & Role-Based Access
 
@@ -12,11 +11,11 @@ This backend powers authentication, teacher–student interactions, scheduling, 
 
 📅 Booking System (create, update, cancel)
 
-💳 Stripe Payment Integration (Checkout + success/cancel flow)
+💳 Stripe Payment Integration (Checkout Session + Success/Cancel)
 
 📧 Email Notifications
 
-🧱 Layered Architecture (Controller → Service → Repository)
+🧱 Layered REST API Architecture
 
 🗄️ PostgreSQL (NeonDB) Cloud Database
 
@@ -24,18 +23,18 @@ This backend powers authentication, teacher–student interactions, scheduling, 
 
 ☁️ Render Deployment Ready
 
-📁 Project Structure
+🏗️ Project Structure
 tuternity-backend/
 │── src/
 │   ├── main/
 │   │   ├── java/com/smarttutor/backend/
-│   │   │   ├── controller/      
-│   │   │   ├── model/           
-│   │   │   ├── repository/      
-│   │   │   ├── service/         
-│   │   │   ├── security/        
-│   │   │   ├── util/            
-│   │   │   └── config/          
+│   │   │   ├── controller/
+│   │   │   ├── model/
+│   │   │   ├── repository/
+│   │   │   ├── service/
+│   │   │   ├── security/
+│   │   │   ├── util/
+│   │   │   └── config/
 │   │   ├── resources/
 │   │   │   ├── application.properties
 │   │   │   └── static/
@@ -46,16 +45,16 @@ tuternity-backend/
 ├── pom.xml
 └── README.md
 
-🛠️ Installation & Setup
-1. Clone the Repository
+⚙️ Installation & Setup
+1️⃣ Clone the Repository
 git clone https://github.com/anas2k5/Tuternity-Backend.git
 cd Tuternity-Backend
 
-2. Configure PostgreSQL (NeonDB)
+2️⃣ Configure NeonDB (PostgreSQL)
 
-Create a new Neon project and copy your DB connection URL.
+Create a NeonDB project and copy your DB connection URL.
 
-3. Update application.properties
+3️⃣ Update application.properties
 spring.datasource.url=jdbc:postgresql://your-neon-url
 spring.datasource.username=your_user
 spring.datasource.password=your_password
@@ -68,55 +67,55 @@ jwt.expiration=86400000
 
 stripe.api.key=your_stripe_secret_key
 
-4. Run the Application
+4️⃣ Start the Server
 
 Using Maven:
 
 mvn spring-boot:run
 
 
-Or using the jar:
+Or using JAR:
 
 java -jar target/tuternity-backend.jar
 
-🌐 Local Development URL
+🌐 Server URL
 http://localhost:8081
 
 📡 API Endpoints
 🔐 Authentication
 Method	Endpoint	Description
 POST	/api/auth/register	Register user
-POST	/api/auth/login	Login & return JWT token
+POST	/api/auth/login	Login & get token
 📚 Bookings
 Method	Endpoint	Description
-POST	/api/bookings	Create a booking
-GET	/api/bookings/student/{id}	Get student bookings
-GET	/api/bookings/teacher/{id}	Get teacher bookings
+POST	/api/bookings	Create booking
+GET	/api/bookings/student/{id}	Student bookings
+GET	/api/bookings/teacher/{id}	Teacher bookings
 💳 Stripe Payments
 Method	Endpoint	Description
 POST	/api/stripe/create-checkout-session/{bookingId}	Start payment
-GET	/api/stripe/success/{bookingId}	Payment verified
-GET	/api/stripe/cancel/{bookingId}	Payment canceled
+GET	/api/stripe/success/{bookingId}	Verify payment
+GET	/api/stripe/cancel/{bookingId}	Cancel payment
 🚀 Deployment (Render)
 
-Dockerized Deployment
+Dockerfile-based deployment
 
-Auto-deploy on push
+Auto-deploy on commit
 
-Environment variables configured
+Environment variables stored securely
 
-Free-tier autosleep
+Free tier autosleep
 
-Live Backend URL
+🔗 Live Backend URL
 https://tuternity-backend.onrender.com
 
 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome!
+Contributions, PRs, and suggestions are welcome.
 
 📬 Contact
 
 Anas Syed
 GitHub: https://github.com/anas2k5
 
-Email: (add here)
+Email: (add your email here)
