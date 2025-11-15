@@ -4,27 +4,28 @@ A complete backend service for the TuterNity Online Tutoring Platform, built wit
 
 This backend powers authentication, teacher–student interactions, scheduling, bookings, payments, and notifications.
 
-Features
+🚀 Features
 
-JWT Authentication & Role-Based Access
+🔐 JWT Authentication & Role-Based Access
 
-Teacher & Student Management
+👨‍🏫 Teacher & Student Management
 
-Booking System (create, update, cancel)
+📅 Booking System (create, update, cancel)
 
-Stripe Payment Integration (Checkout session + success/cancel status)
+💳 Stripe Payment Integration
+Checkout session + success/cancel status
 
-Email Notifications (booking confirmations & updates)
+📧 Email Notifications
 
-Secure REST API with layered architecture
+🧱 Secure REST API (layered architecture)
 
-PostgreSQL (NeonDB) as cloud-hosted DB
+🗄️ PostgreSQL (NeonDB)
 
-Docker support for containerization
+🐳 Docker Support
 
-Render deployment ready
+☁️ Render Deployment Ready
 
-Project Structure
+📁 Project Structure
 tuternity-backend/
 │── src/
 │   ├── main/
@@ -46,14 +47,14 @@ tuternity-backend/
 ├── pom.xml
 └── README.md
 
-Installation & Setup
+🛠 Installation & Setup
 1. Clone the Repository
 git clone https://github.com/anas2k5/Tuternity-Backend.git
 cd Tuternity-Backend
 
 2. Configure NeonDB (PostgreSQL)
 
-Create a new NeonDB project and copy your connection URL.
+Create a new NeonDB project and copy the database URL.
 
 3. Update application.properties
 # Database Configuration
@@ -76,52 +77,47 @@ stripe.api.key=your_stripe_secret_key
 Using Maven:
 mvn spring-boot:run
 
-Or run the built JAR:
+Or run the JAR:
 java -jar target/tuternity-backend.jar
 
-
-The server runs on:
-
+🌐 Local Server
 http://localhost:8081
 
-API Endpoints (Sample)
-Authentication
+📡 API Endpoints
+🔐 Authentication
 Method	Endpoint	Description
 POST	/api/auth/register	Register user
-POST	/api/auth/login	Login & get token
-Bookings
+POST	/api/auth/login	Login & get JWT token
+📚 Bookings
 Method	Endpoint	Description
 POST	/api/bookings	Create booking
 GET	/api/bookings/student/{id}	Student bookings
 GET	/api/bookings/teacher/{id}	Teacher bookings
-Payments (Stripe)
+💳 Stripe Payments
 Method	Endpoint	Description
-POST	/api/stripe/create-checkout-session/{bookingId}	Start payment
-GET	/api/stripe/success/{bookingId}	Verify payment
-GET	/api/stripe/cancel/{bookingId}	Cancel payment
-Deployment
-
-The backend is deployed using Render with the following features:
+POST	/api/stripe/create-checkout-session/{bookingId}	Start Stripe checkout
+GET	/api/stripe/success/{bookingId}	Payment success
+GET	/api/stripe/cancel/{bookingId}	Payment cancelled
+🚀 Deployment (Render)
 
 Dockerfile deployment
 
 Auto-deploy on commit
 
-Environment variables included
+Environment variables added
 
 Free-tier autosleep
 
 Live Backend URL
-
 https://tuternity-backend.onrender.com
 
-Contributing
+🤝 Contributing
 
 Pull requests, issues, and feature requests are welcome.
 
-Contact
+📬 Contact
 
 Anas Syed
 GitHub: https://github.com/anas2k5
 
-Email: (add your email)
+Email: (add your email here)
