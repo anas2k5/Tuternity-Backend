@@ -21,44 +21,47 @@ This backend handles authentication, scheduling, bookings, payments, teacher–s
 
 ## 🏗️ Project Structure
 
+```
 tuternity-backend/
 │── src/
-│ ├── main/
-│ │ ├── java/com/smarttutor/backend/
-│ │ │ ├── controller/
-│ │ │ ├── model/
-│ │ │ ├── repository/
-│ │ │ ├── service/
-│ │ │ ├── security/
-│ │ │ ├── util/
-│ │ │ └── config/
-│ │ ├── resources/
-│ │ │ ├── application.properties
-│ │ │ └── static/
-│ ├── test/
+│   ├── main/
+│   │   ├── java/com/smarttutor/backend/
+│   │   │   ├── controller/
+│   │   │   ├── model/
+│   │   │   ├── repository/
+│   │   │   ├── service/
+│   │   │   ├── security/
+│   │   │   ├── util/
+│   │   │   └── config/
+│   │   ├── resources/
+│   │   │   ├── application.properties
+│   │   │   └── static/
+│   ├── test/
 │
 ├── Dockerfile
 ├── run.sh
 ├── pom.xml
 └── README.md
+```
 
-yaml
-Copy code
 
 ---
 
 ## ⚙️ Installation & Setup
 
 ### 1️⃣ Clone the Repository
+
 ```bash
 git clone https://github.com/anas2k5/Tuternity-Backend.git
 cd Tuternity-Backend
+````
 2️⃣ Configure NeonDB (PostgreSQL)
+
 Create a NeonDB project and copy your DB connection URL.
 
-3️⃣ Update application.properties
-properties
-Copy code
+### 3️⃣ Update `application.properties`
+
+```properties
 spring.datasource.url=jdbc:postgresql://your-neon-url
 spring.datasource.username=your_user
 spring.datasource.password=your_password
@@ -70,55 +73,76 @@ jwt.secret=your_jwt_secret
 jwt.expiration=86400000
 
 stripe.api.key=your_stripe_secret_key
-4️⃣ Start the Server
-Using Maven
+```
+### 4️⃣ Start the Server
 
-bash
-Copy code
+#### ▶️ Using Maven
+```bash
 mvn spring-boot:run
-Or using JAR
+```
 
-bash
-Copy code
+#### ▶️ Using JAR
+```bash
 java -jar target/tuternity-backend.jar
-🌐 Server URL
-arduino
-Copy code
+```
+## 🌐 Server URL
+
+```
 http://localhost:8081
-📡 API Endpoints
-🔐 Authentication
-Method	Endpoint	Description
-POST	/api/auth/register	Register user
-POST	/api/auth/login	Login & get token
+```
+## 📡 API Endpoints
 
-📚 Bookings
-Method	Endpoint	Description
-POST	/api/bookings	Create booking
-GET	/api/bookings/student/{id}	Student bookings
-GET	/api/bookings/teacher/{id}	Teacher bookings
+---
 
-💳 Stripe Payments
-Method	Endpoint	Description
-POST	/api/stripe/create-checkout-session/{bookingId}	Start payment
-GET	/api/stripe/success/{bookingId}	Verify payment
-GET	/api/stripe/cancel/{bookingId}	Cancel payment
+### 🔐 Authentication
 
-🚀 Deployment (Render)
-Dockerfile-based deployment
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| POST | `/api/auth/register` | Register user |
+| POST | `/api/auth/login` | Login & get token |
 
-Auto-deploy on commit
+---
 
-Environment variables stored securely
+### 📚 Bookings
 
-Free tier autosleep
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| POST | `/api/bookings` | Create booking |
+| GET | `/api/bookings/student/{id}` | Student bookings |
+| GET | `/api/bookings/teacher/{id}` | Teacher bookings |
 
-Live Backend URL:
+---
+
+### 💳 Stripe Payments
+
+| Method | Endpoint | Description |
+|--------|-----------|-------------|
+| POST | `/api/stripe/create-checkout-session/{bookingId}` | Start payment |
+| GET | `/api/stripe/success/{bookingId}` | Verify payment |
+| GET | `/api/stripe/cancel/{bookingId}` | Cancel payment |
+
+---
+
+## 🚀 Deployment (Render)
+
+- Dockerfile-based deployment  
+- Auto-deploy on commit  
+- Environment variables stored securely  
+- Free tier autosleep  
+
+### **Live Backend URL**
 https://tuternity-backend.onrender.com
 
-🤝 Contributing
+
+---
+
+## 🤝 Contributing
 Contributions, PRs, and suggestions are welcome!
 
-📬 Contact
-Anas Syed
-GitHub: https://github.com/anas2k5
-Email: (add your email here)
+---
+
+## 📬 Contact
+
+**Anas Syed**  
+GitHub: https://github.com/anas2k5  
+Email: anassyed236@gmail.com 
